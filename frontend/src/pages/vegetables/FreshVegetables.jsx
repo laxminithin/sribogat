@@ -8,6 +8,7 @@ import { useAuth } from '../checkout/AuthProvider';
 import { toast } from 'react-hot-toast';
 import { usersApi, productsApi } from '../../services/api';
 import { resolveImageUrl } from '../../config/config';
+import { getPriceData } from '../../utils/pricing';
 import ProductReviewSection from './Feedback/ProductReviewSection';
 
 const BogatProducts = () => {
@@ -22,32 +23,6 @@ const BogatProducts = () => {
 
   const navigate = useNavigate();
   const { dispatch } = useCart();
-
-  // Function to get price data from database (no calculation needed)
-  const getPriceData = (product) => {
-    // Check if the product has pre-calculated total price from database
-    if (product.totalPrice !== undefined && product.totalPrice !== null) {
-      return {
-        basePrice: product.price || 0,
-        gstRate: product.gst || 18,
-        gstAmount: product.gstAmount || 0,
-        totalPrice: product.totalPrice
-      };
-    }
-    
-    // Fallback: If database doesn't have totalPrice, calculate it
-    const basePrice = parseFloat(product.price) || 0;
-    const gstRate = product.gst || 18;
-    const gstAmount = (basePrice * gstRate) / 100;
-    const totalPrice = basePrice + gstAmount;
-    
-    return {
-      basePrice,
-      gstRate,
-      gstAmount,
-      totalPrice
-    };
-  };
 
   // Helper function to get the first image from the images array
   const getProductImage = (product) => {
@@ -537,7 +512,10 @@ const BogatProducts = () => {
                       }`}>
                         ₹{priceData.totalPrice.toFixed(2)}
                       </div>
-                      
+                      {priceData.gstRate > 0 && (
+                        <span className="text-xs text-gray-500">Inclusive of GST</span>
+                      )}
+
                       {product.unit && (
                         <span className="text-sm text-gray-600 font-normal mt-1">
                           /{product.unit}

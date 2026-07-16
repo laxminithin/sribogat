@@ -30,6 +30,11 @@ export function serializeProduct(product) {
 
   const imageUrls = (Array.isArray(product.imageUrls) ? product.imageUrls : toArray(product.imageUrls)).filter(Boolean);
 
+  const price = Number(product.price);
+  const gstRate = product.gstRate == null ? 0 : Number(product.gstRate);
+  const gstAmount = Math.round(price * gstRate) / 100;
+  const totalPrice = Math.round((price + gstAmount) * 100) / 100;
+
   return {
     id: product.id,
     _id: product.id,
@@ -41,10 +46,12 @@ export function serializeProduct(product) {
     subcategory: product.subcategory || '',
     description: product.description,
     unit: product.unit,
-    price: Number(product.price),
+    price,
     originalPrice: product.originalPrice == null ? null : Number(product.originalPrice),
-    gst: product.gstRate == null ? 0 : Number(product.gstRate),
-    gstRate: product.gstRate == null ? 0 : Number(product.gstRate),
+    gst: gstRate,
+    gstRate,
+    gstAmount,
+    totalPrice,
     hsn: product.hsn || '',
     stock: product.stock,
     status: product.status,

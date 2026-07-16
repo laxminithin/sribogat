@@ -48,6 +48,13 @@ function toMoney(value) {
   return Number(value ?? 0).toFixed(2);
 }
 
+function round2(value) {
+  return Math.round(Number(value ?? 0) * 100) / 100;
+}
+
+const FREE_SHIPPING_THRESHOLD = 500;
+const SHIPPING_CHARGE = 50;
+
 function buildOrderNumber(sequence) {
   return `ORD-${String(sequence).padStart(6, '0')}`;
 }
@@ -134,8 +141,47 @@ export const createOrder = asyncHandler(async (req, res) => {
     where: eq(users.id, req.auth.userId),
   });
 
-  const totalAmount = input.totalAmount ?? input.total ?? input.discountedSubtotal ?? input.subtotal;
-  const shippingCharge = input.shippingCharge ?? input.shipping ?? 0;
+  // Price everything server-side from the DB so GST is applied exactly once,
+  // regardless of what the client sends.
+  const itemRows = [];
+  let subtotal = 0;
+
+  for (const item of input.items) {
+    const productId = item.productId ?? item.product;
+    const product = await db.query.products.findFirst({
+      where: eq(products.id, productId),
+    });
+
+    if (!product) {
+      return res.status(400).json({ error: `Product not found: ${productId}` });
+    }
+
+    const basePrice = Number(product.price);
+    const gstRate = Number(product.gstRate ?? 0);
+    const gstAmount = round2((basePrice * gstRate) / 100);
+    const unitPrice = round2(basePrice + gstAmount);
+    const lineTotal = round2(unitPrice * item.quantity);
+    subtotal = round2(subtotal + lineTotal);
+
+    itemRows.push({
+      id: createId(),
+      orderId,
+      productId,
+      name: item.name ?? product.name,
+      quantity: item.quantity,
+      basePrice: toMoney(basePrice),
+      unitPrice: toMoney(unitPrice),
+      gstRate: toMoney(gstRate),
+      gstAmount: toMoney(gstAmount),
+      hsn: product.hsn,
+      lineTotal: toMoney(lineTotal),
+    });
+  }
+
+  const discount = Math.min(round2(input.discount ?? 0), subtotal);
+  const discountedSubtotal = round2(subtotal - discount);
+  const shippingCharge = discountedSubtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_CHARGE;
+  const totalAmount = round2(discountedSubtotal + shippingCharge);
 
   await db
     .insert(orders)
@@ -143,9 +189,9 @@ export const createOrder = asyncHandler(async (req, res) => {
       id: orderId,
       orderNumber,
       userId: req.auth.userId,
-      subtotal: toMoney(input.subtotal),
-      discountedSubtotal: toMoney(input.discountedSubtotal ?? input.subtotal),
-      discount: toMoney(input.discount ?? 0),
+      subtotal: toMoney(subtotal),
+      discountedSubtotal: toMoney(discountedSubtotal),
+      discount: toMoney(discount),
       totalAmount: toMoney(totalAmount),
       shippingCharge: toMoney(shippingCharge),
       couponCode: input.couponCode ?? null,
@@ -160,34 +206,7 @@ export const createOrder = asyncHandler(async (req, res) => {
       shippingPincode: input.shippingAddress.pincode,
     });
 
-  for (const item of input.items) {
-    const productId = item.productId ?? item.product;
-    const product = await db.query.products.findFirst({
-      where: eq(products.id, productId),
-    });
-
-    if (!product) {
-      return res.status(400).json({ error: `Product not found: ${productId}` });
-    }
-
-    const basePrice = Number(product.price);
-    const gstRate = Number(product.gstRate ?? 0);
-    const gstAmount = (basePrice * gstRate) / 100;
-
-    await db.insert(orderItems).values({
-      id: createId(),
-      orderId,
-      productId,
-      name: item.name ?? product.name,
-      quantity: item.quantity,
-      basePrice: toMoney(basePrice),
-      unitPrice: toMoney(item.price),
-      gstRate: toMoney(gstRate),
-      gstAmount: toMoney(gstAmount),
-      hsn: product.hsn,
-      lineTotal: toMoney(item.price * item.quantity),
-    });
-  }
+  await db.insert(orderItems).values(itemRows);
 
   const order = await fetchOrderWithItems(orderId, req.auth.userId);
 

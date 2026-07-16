@@ -10,7 +10,8 @@ import {
 import toast from 'react-hot-toast';
 import { ordersApi, productsApi } from '../../services/api';
 import { resolveImageUrl } from '../../config/config';
-import couponApi from '../../services/couponApi'; 
+import couponApi from '../../services/couponApi';
+import { getPriceData } from '../../utils/pricing';
 
 const CheckoutPage = () => {
   const { 
@@ -54,83 +55,6 @@ const CheckoutPage = () => {
     phone: ''
   });
 
-  // ✅ FIXED: Function to get price data from database with proper GST calculation
-  const getPriceData = (product) => {
-    console.log('🔍 Analyzing product pricing:', {
-      productId: product._id || product.id,
-      name: product.name,
-      price: product.price,
-      gstRate: product.gstRate,
-      gst: product.gst,
-      totalPrice: product.totalPrice,
-      gstAmount: product.gstAmount
-    });
-
-    // Method 1: If database has pre-calculated total price with GST
-    if (product.totalPrice !== undefined && product.totalPrice !== null && product.totalPrice > 0) {
-      const basePrice = parseFloat(product.price) || 0;
-      const totalPrice = parseFloat(product.totalPrice);
-      const gstRate = product.gstRate || product.gst || 18;
-      const calculatedGstAmount = totalPrice - basePrice;
-      
-      console.log('✅ Using database totalPrice method:', {
-        basePrice,
-        totalPrice,
-        gstRate,
-        calculatedGstAmount
-      });
-      
-      return {
-        basePrice,
-        gstRate,
-        gstAmount: calculatedGstAmount > 0 ? calculatedGstAmount : (basePrice * gstRate) / 100,
-        totalPrice
-      };
-    }
-    
-    // Method 2: If database has separate GST amount stored
-    if (product.gstAmount !== undefined && product.gstAmount !== null && product.gstAmount > 0) {
-      const basePrice = parseFloat(product.price) || 0;
-      const gstAmount = parseFloat(product.gstAmount);
-      const gstRate = product.gstRate || product.gst || 18;
-      const totalPrice = basePrice + gstAmount;
-      
-      console.log('✅ Using database gstAmount method:', {
-        basePrice,
-        gstAmount,
-        gstRate,
-        totalPrice
-      });
-      
-      return {
-        basePrice,
-        gstRate,
-        gstAmount,
-        totalPrice
-      };
-    }
-    
-    // Method 3: Calculate GST from base price and rate
-    const basePrice = parseFloat(product.price) || 0;
-    const gstRate = product.gstRate || product.gst || 18; // ✅ FIXED: Removed JSX syntax
-    const gstAmount = (basePrice * gstRate) / 100;
-    const totalPrice = basePrice + gstAmount;
-    
-    console.log('⚠️ Calculating GST (database should have this pre-calculated):', {
-      basePrice,
-      gstRate,
-      gstAmount,
-      totalPrice
-    });
-    
-    return {
-      basePrice,
-      gstRate,
-      gstAmount,
-      totalPrice
-    };
-  };
-
   // ✅ Fetch product details including database pricing for all cart items
   const fetchProductDetails = async () => {
     try {
@@ -161,7 +85,7 @@ const CheckoutPage = () => {
             id: item._id || item.id,
             ...item,
             price: item.price || 0,
-            gstRate: 18,
+            gstRate: 0,
             gstAmount: 0,
             totalPrice: item.price || 0
           };
@@ -661,9 +585,9 @@ const CheckoutPage = () => {
                 {cartState.items.map((item, index) => {
                   const productId = item._id || item.id;
                   const product = productDetails.get(productId);
-                  const priceData = product ? getPriceData(product) : { 
+                  const priceData = product ? getPriceData(product) : {
                     basePrice: item.price || 0,
-                    gstRate: 18,
+                    gstRate: 0,
                     gstAmount: 0,
                     totalPrice: item.price || 0
                   };
@@ -909,7 +833,7 @@ const CheckoutPage = () => {
                 <>
                   <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
                     <div className="flex justify-between text-gray-600 text-base sm:text-lg">
-                      <span>Subtotal ({getTotalItems()} items)</span>
+                      <span>Subtotal ({getTotalItems()} items) <span className="text-xs text-gray-500">(incl. GST)</span></span>
                       <span className="font-semibold">₹{totals.subtotal.toFixed(2)}</span>
                     </div>
                     

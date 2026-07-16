@@ -837,6 +837,19 @@ const debugHSNField = () => {
         </div>
       </div>
 
+      {/* Auto-calculated customer price (price + GST) */}
+      {Number(formData.price) > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-gray-700">
+          Customers will see:{' '}
+          <span className="font-bold">
+            ₹{(Math.round(Number(formData.price) * (1 + (Number(formData.gst) || 0) / 100) * 100) / 100).toFixed(2)}
+          </span>
+          {Number(formData.gst) > 0
+            ? ` (₹${Number(formData.price).toFixed(2)} + ${Number(formData.gst)}% GST)`
+            : ' (no GST)'}
+        </div>
+      )}
+
       {/* Stock and Status */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>

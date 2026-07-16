@@ -4,6 +4,7 @@ import { Eye, Search, ShoppingCart } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { productsApi } from '../services/api';
 import { resolveImageUrl } from '../config/config';
+import { getPriceData } from '../utils/pricing';
 import { useCart } from './checkout/CartContext';
 import { useAuth } from './checkout/AuthProvider';
 
@@ -109,7 +110,10 @@ const SearchResults = () => {
                     <div className="mb-2 text-xs font-semibold text-amber-700">{product.category || product.brand || 'Sri Bogat'}</div>
                     <h3 className="line-clamp-2 text-lg font-semibold text-gray-900">{product.name}</h3>
                     <p className="mt-2 line-clamp-2 text-sm text-gray-600">{product.description}</p>
-                    <div className="mt-4 text-2xl font-bold text-amber-800">₹{Number(product.price || 0).toFixed(2)}</div>
+                    <div className="mt-4 text-2xl font-bold text-amber-800">₹{getPriceData(product).totalPrice.toFixed(2)}</div>
+                    {getPriceData(product).gstRate > 0 && (
+                      <div className="text-xs text-gray-500">Inclusive of GST</div>
+                    )}
                     <div className="mt-5 flex gap-3">
                       <button
                         onClick={(event) => {

@@ -12,6 +12,7 @@ import { useAuth } from '../checkout/AuthProvider';
 import { toast } from 'react-hot-toast';
 import { usersApi, productsApi } from '../../services/api';
 import { resolveImageUrl } from '../../config/config';
+import { getPriceData } from '../../utils/pricing';
 import { Link } from 'react-router-dom';
 
 // ✅ FIXED: Separate ReviewForm component to prevent re-rendering issues
@@ -204,32 +205,6 @@ const ProductDetailPage = () => {
   const [canReviewReason, setCanReviewReason] = useState('');
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-
-  // Function to get price data from database (no calculation needed)
-  const getPriceData = useCallback((product) => {
-    // Check if the product has pre-calculated total price from database
-    if (product.totalPrice !== undefined && product.totalPrice !== null) {
-      return {
-        basePrice: product.price || 0,
-        gstRate: product.gst || 18,
-        gstAmount: product.gstAmount || 0,
-        totalPrice: product.totalPrice
-      };
-    }
-    
-    // Fallback: If database doesn't have totalPrice, calculate it
-    const basePrice = parseFloat(product.price) || 0;
-    const gstRate = product.gst || 18;
-    const gstAmount = (basePrice * gstRate) / 100;
-    const totalPrice = basePrice + gstAmount;
-    
-    return {
-      basePrice,
-      gstRate,
-      gstAmount,
-      totalPrice
-    };
-  }, []);
 
   // Image handling functions
   const getProductImage = useCallback((imagePath) => {

@@ -5,6 +5,7 @@ import CategoryManagementModal from './CategoryManagement';
 import { toast } from 'react-hot-toast';
 import { productsApi } from '../../services/api';
 import config, { resolveImageUrl } from '../../config/config';
+import { getPriceData } from '../../utils/pricing';
 
 const ProductsManagement = () => {
   const [products, setProducts] = useState([]);
@@ -24,9 +25,24 @@ const ProductsManagement = () => {
   const [selectedProductImages, setSelectedProductImages] = useState(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
-  // ✅ FIXED: Image processing functions
+  // Inline SVG data URI: always loads, can never 404 or trigger an onError loop.
+  const FALLBACK_IMG =
+    'data:image/svg+xml;charset=utf-8,' +
+    encodeURIComponent(
+      '<svg xmlns="http://www.w3.org/2000/svg" width="300" height="200">' +
+        '<rect width="100%" height="100%" fill="#f3f4f6"/>' +
+        '<text x="50%" y="50%" fill="#9ca3af" font-family="sans-serif" font-size="16" ' +
+        'text-anchor="middle" dominant-baseline="middle">No Image</text></svg>'
+    );
+
+  // Clear onerror before swapping so a failing fallback can't re-fire → flicker.
+  const setFallback = (e) => {
+    e.target.onerror = null;
+    e.target.src = FALLBACK_IMG;
+  };
+
   const getProductImage = (imagePath) => {
-    return resolveImageUrl(imagePath, 'https://via.placeholder.com/300x200/f3f4f6/9ca3af?text=No+Image');
+    return resolveImageUrl(imagePath, FALLBACK_IMG);
   };
 
   const getProductImages = (product) => {
@@ -36,7 +52,7 @@ const ProductsManagement = () => {
     if (product.image) {
       return [getProductImage(product.image)];
     }
-    return ['https://via.placeholder.com/300x200/f3f4f6/9ca3af?text=No+Image'];
+    return [FALLBACK_IMG];
   };
 
   const debugProductImages = () => {
@@ -494,21 +510,10 @@ const handleEditProduct = async (productData) => {
                           <div className="flex items-center">
                             <div className="relative group">
                              <img
-  src={
-    productImages[0]?.startsWith('http')
-      ? productImages[0]
-      : `${import.meta.env.VITE_BACKEND_URL}${productImages[0]}`
-  }
+  src={productImages[0]}
   alt={product.name}
   className="w-12 h-12 rounded-xl object-cover shadow-md group-hover:scale-110 transition-transform duration-200"
-  onError={(e) => {
-    // console.error('❌ Product image failed to load:', e.target.src);
-    e.target.onerror = null;
-    e.target.src = '/fallback.jpg'; // Ensure fallback.jpg exists in /public
-  }}
-  onLoad={(e) => {
-    console.log('✅ Product image loaded successfully:', e.target.src);
-  }}
+  onError={setFallback}
 />
 
 
@@ -529,9 +534,7 @@ const handleEditProduct = async (productData) => {
                                   src={img}
                                   alt={`${product.name} ${idx + 1}`}
                                   className="w-8 h-8 rounded-full object-cover border-2 border-white shadow-sm"
-                                  onError={(e) => {
-                                    e.target.src = '/fallback.jpeg';
-                                  }}
+                                  onError={setFallback}
                                 />
                               ))}
                             </div>
@@ -550,7 +553,8 @@ const handleEditProduct = async (productData) => {
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm font-bold text-gray-900">₹{product.price}</div>
+                          <div className="text-sm font-bold text-gray-900">₹{getPriceData(product).totalPrice.toFixed(2)}</div>
+                          <div className="text-xs text-gray-500">incl. GST · base ₹{Number(product.price).toFixed(2)}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm text-gray-900">{product.unit}</div>
@@ -625,9 +629,7 @@ const handleEditProduct = async (productData) => {
                       src={productImages[0]}
                       alt={product.name}
                       className="w-full h-40 object-cover rounded-xl"
-                      onError={(e) => {
-                        e.target.src = 'https://via.placeholder.com/300x200/f3f4f6/9ca3af?text=No+Image';
-                      }}
+                      onError={setFallback}
                     />
                     <div className="absolute top-2 right-2">
                       <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${stockStatus.color}`}>
@@ -661,8 +663,8 @@ const handleEditProduct = async (productData) => {
                     </div>
                     
                     <div className="flex justify-between items-center">
-                      <span className="text-2xl font-bold text-amber-600">₹{product.price}</span>
-                      <span className="text-sm text-gray-500">per {product.unit}</span>
+                      <span className="text-2xl font-bold text-amber-600">₹{getPriceData(product).totalPrice.toFixed(2)}</span>
+                      <span className="text-sm text-gray-500">incl. GST · per {product.unit}</span>
                     </div>
                     
                     <div className="flex items-center justify-between pt-4 border-t border-gray-100">
@@ -742,13 +744,7 @@ const handleEditProduct = async (productData) => {
                   src={selectedProductImages.images[currentImageIndex]}
                   alt={`${selectedProductImages.product.name} ${currentImageIndex + 1}`}
                   className="w-full h-96 object-contain"
-                  onError={(e) => {
-                    // console.error('❌ Modal image failed to load:', e.target.src);
-                    e.target.src = 'https://via.placeholder.com/600x400/f3f4f6/9ca3af?text=Image+Not+Found';
-                  }}
-                  onLoad={() => {
-                    console.log('✅ Modal image loaded successfully:', selectedProductImages.images[currentImageIndex]);
-                  }}
+                  onError={setFallback}
                 />
                 
                 {selectedProductImages.images.length > 1 && (
@@ -784,9 +780,7 @@ const handleEditProduct = async (productData) => {
                           src={img}
                           alt={`Thumbnail ${index + 1}`}
                           className="w-full h-full object-cover"
-                          onError={(e) => {
-                            e.target.src = 'https://via.placeholder.com/100x100/f3f4f6/9ca3af?text=No+Image';
-                          }}
+                          onError={setFallback}
                         />
                       </button>
                     ))}

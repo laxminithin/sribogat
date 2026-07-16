@@ -264,7 +264,8 @@ export const CartProvider = ({ children }) => {
         return false;
       }
 
-      const validPrice = Number(product.price);
+      // Cart always stores the GST-inclusive price so checkout never re-adds GST
+      const validPrice = Number(product.totalPrice ?? product.price);
       if (isNaN(validPrice) || validPrice < 0) {
         console.error('❌ Invalid price:', product.price, '→', validPrice);
         toast.error('Invalid product price');
