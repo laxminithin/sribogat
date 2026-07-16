@@ -73,7 +73,7 @@ const ProductCatalog = ({ showAll = false }) => {
 
   const getProductImage = (product) => {
     const image = product?.images?.[0] || product?.image || product?.imageUrl;
-    return resolveImageUrl(image, 'https://via.placeholder.com/600x600/f5f5f5/9ca3af?text=Sri+Bogat');
+    return resolveImageUrl(image);
   };
 
   const handleOpenProduct = (productId) => {

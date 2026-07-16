@@ -21,7 +21,8 @@ export function createApp() {
       credentials: true,
     })
   );
-  app.use(helmet());
+  // cross-origin CORP so the frontend (different port/origin) can render /uploads images
+  app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.use(express.json({ limit: '5mb' }));
   app.use(express.urlencoded({ extended: true }));
   app.use(morgan(env.NODE_ENV === 'production' ? 'combined' : 'dev'));

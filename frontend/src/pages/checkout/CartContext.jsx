@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useReducer, useEffect, useState } from 'react';
 import { useAuth } from './AuthProvider';
 import toast from 'react-hot-toast';
+import { FALLBACK_IMAGE } from '../../config/config';
 
 const CartContext = createContext();
 
@@ -283,7 +284,7 @@ export const CartProvider = ({ children }) => {
         quantity: 1,
         // Ensure we have essential display fields
         name: product.name || 'Unknown Product',
-        image: product.image || product.images?.[0] || '/api/placeholder/300/200',
+        image: product.image || product.images?.[0] || FALLBACK_IMAGE,
         stock: product.stock || 999
       };
 

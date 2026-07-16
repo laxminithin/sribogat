@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import config, { resolveImageUrl } from '../../config/config';
+import config, { resolveImageUrl, FALLBACK_IMAGE } from '../../config/config';
 import { 
   Star, 
   User, 
@@ -247,7 +247,7 @@ const AdminReviewManagement = () => {
         {
           _id: 1,
           user: { name: 'Rajesh Kumar', email: 'rajesh@example.com' },
-          product: { _id: 'p1', name: 'Premium Organic Rice', image: '/api/placeholder/60/60' },
+          product: { _id: 'p1', name: 'Premium Organic Rice', image: FALLBACK_IMAGE },
           rating: 5,
           title: 'Excellent quality product!',
           comment: 'This product exceeded my expectations. Great quality and fast delivery. Highly recommended!',
@@ -264,7 +264,7 @@ const AdminReviewManagement = () => {
         {
           _id: 2,
           user: { name: 'Priya Sharma', email: 'priya@example.com' },
-          product: { _id: 'p2', name: 'Fresh Vegetables Bundle', image: '/api/placeholder/60/60' },
+          product: { _id: 'p2', name: 'Fresh Vegetables Bundle', image: FALLBACK_IMAGE },
           rating: 4,
           title: 'Good value for money',
           comment: 'Nice product overall. The packaging could be better but the product quality is good.',
@@ -282,7 +282,7 @@ const AdminReviewManagement = () => {
         {
           _id: 3,
           user: { name: 'Amit Patel', email: 'amit@example.com' },
-          product: { _id: 'p3', name: 'Organic Fruits Mix', image: '/api/placeholder/60/60' },
+          product: { _id: 'p3', name: 'Organic Fruits Mix', image: FALLBACK_IMAGE },
           rating: 2,
           title: 'Not as expected',
           comment: 'Quality was poor and delivery was delayed. Very disappointed with this purchase.',
@@ -298,7 +298,7 @@ const AdminReviewManagement = () => {
         {
           _id: 4,
           user: { name: 'Sarah Johnson', email: 'sarah@example.com' },
-          product: { _id: 'p4', name: 'Premium Spices Set', image: '/api/placeholder/60/60' },
+          product: { _id: 'p4', name: 'Premium Spices Set', image: FALLBACK_IMAGE },
           rating: 1,
           title: 'Terrible quality',
           comment: 'This product did not meet expectations. The quality was below standard.',
@@ -584,7 +584,7 @@ const AdminReviewManagement = () => {
 
   // Get image URL for review images
   const getImageUrl = (imagePath) => {
-    if (!imagePath) return '/api/placeholder/200/200';
+    if (!imagePath) return FALLBACK_IMAGE;
     // Handle full URLs
     if (imagePath.startsWith('http')) return imagePath;
     // Handle relative paths from uploads folder

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import config from '../../../config/config';
+import config, { FALLBACK_IMAGE } from '../../../config/config';
 import {
   Star, User, ThumbsUp, ShoppingBag, CheckCircle, Filter, SortAsc, 
   Loader2, AlertCircle, Eye, ChevronLeft, ChevronRight, X, Edit3, ChevronDown,
@@ -131,11 +131,8 @@ const VerifiedReviewsSection = ({ productId = null, showProductInfo = false }) =
       );
     }
     
-    // Add placeholder images as final fallbacks
-    fallbacks.push(
-      `https://via.placeholder.com/200x200/f3f4f6/9ca3af?text=Review+Image`,
-      `https://images.unsplash.com/photo-1486312338219-ce68d2c6f44d?w=200&h=200&fit=crop`
-    );
+    // Add placeholder image as final fallback
+    fallbacks.push(FALLBACK_IMAGE);
     
     return fallbacks;
   };

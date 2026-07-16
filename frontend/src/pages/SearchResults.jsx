@@ -59,7 +59,7 @@ const SearchResults = () => {
       id: product._id || product.id,
       _id: product._id || product.id,
       image:
-        resolveImageUrl(product.images?.[0] || product.image || product.imageUrl, '/api/placeholder/300/200'),
+        resolveImageUrl(product.images?.[0] || product.image || product.imageUrl),
     });
 
     if (success) {
@@ -95,8 +95,7 @@ const SearchResults = () => {
             {results.map((product) => {
               const productId = product._id || product.id;
               const image = resolveImageUrl(
-                product.images?.[0] || product.image || product.imageUrl,
-                'https://via.placeholder.com/600x600/f5f5f5/9ca3af?text=Sri+Bogat'
+                product.images?.[0] || product.image || product.imageUrl
               );
 
               return (

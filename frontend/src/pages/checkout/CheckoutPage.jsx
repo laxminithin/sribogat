@@ -604,8 +604,7 @@ const CheckoutPage = () => {
                         <div className="relative overflow-hidden rounded-lg sm:rounded-xl w-full sm:w-auto">
                           <img
                             src={resolveImageUrl(
-                              item.image || item.imageUrl || product?.image || product?.imageUrl || product?.images?.[0],
-                              '/api/placeholder/300/200'
+                              item.image || item.imageUrl || product?.image || product?.imageUrl || product?.images?.[0]
                             )}
                             alt={item.name}
                             className="w-full sm:w-20 md:w-24 h-48 sm:h-20 md:h-24 object-cover transition-transform duration-300 group-hover:scale-110"

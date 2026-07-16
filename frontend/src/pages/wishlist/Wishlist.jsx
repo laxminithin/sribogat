@@ -191,7 +191,7 @@ const Wishlist = () => {
                     )}
                     
                     <img
-                      src={resolveImageUrl(product.image || product.imageUrl || product.images?.[0], '/api/placeholder/300/200')}
+                      src={resolveImageUrl(product.image || product.imageUrl || product.images?.[0])}
                       alt={product.name}
                       className={`w-full h-48 object-contain transition-transform duration-500 p-4 ${
                         !isUnavailable 
