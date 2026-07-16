@@ -1,0 +1,16 @@
+# Apache .htaccess for proxying the backend domain to the Node app on port 5013.
+# Requires Apache modules: rewrite, proxy, proxy_http, proxy_wstunnel, headers.
+
+RewriteEngine On
+
+# Keep the original Authorization header available to the proxied Node app.
+RewriteCond %{HTTP:Authorization} ^(.+)$
+RewriteRule ^ - [E=HTTP_AUTHORIZATION:%1]
+RequestHeader set Authorization %{HTTP_AUTHORIZATION}e env=HTTP_AUTHORIZATION
+
+# Forward websocket upgrade requests when present.
+RewriteCond %{HTTP:Upgrade} =websocket [NC]
+RewriteRule ^(.*)$ ws://127.0.0.1:5013/$1 [P,L]
+
+# Forward all regular HTTP requests to the local Node backend.
+RewriteRule ^(.*)$ http://127.0.0.1:5013/$1 [P,L]

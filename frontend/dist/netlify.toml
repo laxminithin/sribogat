@@ -1,0 +1,15 @@
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[build]
+  publish = "dist"  # Or your build output directory (e.g., "build" for CRA)
+  command = "npm run build"  # Or your build command
+
+# Optional: Add custom headers if needed
+[[headers]]
+  for = "/*"
+    [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"

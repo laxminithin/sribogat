@@ -1,0 +1,60 @@
+{
+  "name": "kissanbandi-backend",
+  "version": "1.0.0",
+  "description": "Backend server for KissanBandi e-commerce platform",
+  "main": "src/app.js",
+  "scripts": {
+    "start": "node src/app.js",
+    "dev": "cross-env NODE_ENV=development nodemon src/app.js",
+    "prod": "cross-env NODE_ENV=production node src/app.js",
+    "test": "cross-env NODE_ENV=test jest --detectOpenHandles",
+    "lint": "eslint src/**/*.js",
+    "format": "prettier --write 'src/**/*.js'",
+    "db:up": "docker compose -f docker-compose.sql.yml up -d",
+    "db:down": "docker compose -f docker-compose.sql.yml down",
+    "db:local": "prisma dev",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:studio": "prisma studio",
+    "db:migrate-data": "node scripts/migrateMongoToPrisma.js"
+  },
+  "keywords": [
+    "kissanbandi",
+    "ecommerce",
+    "agriculture",
+    "tech"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@prisma/client": "^6.11.1",
+    "bcryptjs": "^2.4.3",
+    "cloudinary": "^1.27.1",
+    "cors": "^2.8.5",
+    "crypto": "^1.0.1",
+    "dotenv": "^16.6.1",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "express-validator": "^7.2.1",
+    "joi": "^17.13.3",
+    "json2csv": "^6.0.0-alpha.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^7.8.7",
+    "mongoose-paginate-v2": "^1.9.1",
+    "morgan": "^1.10.0",
+    "multer": "^1.4.5-lts.1",
+    "multer-storage-cloudinary": "^4.0.0",
+    "nodemailer": "^6.10.1",
+    "razorpay": "^2.9.5",
+    "react-beautiful-dnd": "^13.1.1",
+    "validator": "^13.12.0"
+  },
+  "devDependencies": {
+    "cross-env": "^7.0.3",
+    "eslint": "^8.35.0",
+    "jest": "^29.5.0",
+    "nodemon": "^3.1.10",
+    "prettier": "^2.8.4",
+    "prisma": "^6.11.1"
+  }
+}

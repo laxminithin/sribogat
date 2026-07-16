@@ -1,0 +1,98 @@
+import { toArray } from './requestParsing.js';
+
+export function serializeUser(user) {
+  if (!user) return null;
+
+  return {
+    id: user.id,
+    _id: user.id,
+    name: user.name,
+    email: user.email,
+    phone: user.phone,
+    alternatePhone: user.alternatePhone,
+    role: user.role,
+    isActive: true,
+    isEmailVerified: user.isEmailVerified,
+    address: {
+      street: user.addressStreet || '',
+      locality: user.addressLocality || '',
+      city: user.addressCity || '',
+      state: user.addressState || '',
+      pincode: user.addressPincode || '',
+    },
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  };
+}
+
+export function serializeProduct(product) {
+  if (!product) return null;
+
+  const imageUrls = (Array.isArray(product.imageUrls) ? product.imageUrls : toArray(product.imageUrls)).filter(Boolean);
+
+  return {
+    id: product.id,
+    _id: product.id,
+    name: product.name,
+    slug: product.slug,
+    categoryId: product.categoryId,
+    category: product.categoryName || product.category || '',
+    categoryName: product.categoryName || product.category || '',
+    subcategory: product.subcategory || '',
+    description: product.description,
+    unit: product.unit,
+    price: Number(product.price),
+    originalPrice: product.originalPrice == null ? null : Number(product.originalPrice),
+    gst: product.gstRate == null ? 0 : Number(product.gstRate),
+    gstRate: product.gstRate == null ? 0 : Number(product.gstRate),
+    hsn: product.hsn || '',
+    stock: product.stock,
+    status: product.status,
+    image: product.imageUrl,
+    imageUrl: product.imageUrl,
+    images: imageUrls,
+    brand: product.brand || '',
+    tags: Array.isArray(product.tags) ? product.tags : toArray(product.tags),
+    features: Array.isArray(product.features) ? product.features : toArray(product.features),
+    featured: product.isFeatured,
+    isFeatured: product.isFeatured,
+    createdAt: product.createdAt,
+    updatedAt: product.updatedAt,
+  };
+}
+
+export function serializeOrder(order, items = []) {
+  if (!order) return null;
+
+  return {
+    id: order.id,
+    _id: order.id,
+    orderNumber: order.orderNumber,
+    subtotal: Number(order.subtotal),
+    discountedSubtotal: Number(order.discountedSubtotal ?? 0),
+    discount: Number(order.discount ?? 0),
+    totalAmount: Number(order.totalAmount),
+    shippingCharge: Number(order.shippingCharge ?? 0),
+    couponCode: order.couponCode,
+    status: order.status,
+    paymentStatus: order.paymentStatus,
+    paymentMethod: order.paymentMethod,
+    customerName: order.shippingName,
+    shippingAddress: {
+      address: order.shippingAddress,
+      city: order.shippingCity,
+      state: order.shippingState,
+      pincode: order.shippingPincode,
+      phone: order.shippingPhone,
+    },
+    adminNote: order.adminNote,
+    razorpayDetails: {
+      orderId: order.razorpayOrderId,
+      paymentId: order.razorpayPaymentId,
+      signature: order.razorpaySignature,
+    },
+    items,
+    createdAt: order.createdAt,
+    updatedAt: order.updatedAt,
+  };
+}

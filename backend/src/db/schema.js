@@ -1,0 +1,152 @@
+import {
+  boolean,
+  decimal,
+  int,
+  json,
+  mysqlEnum,
+  mysqlTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  varchar,
+} from 'drizzle-orm/mysql-core';
+
+export const userRoleValues = ['user', 'admin', 'business'];
+export const productStatusValues = ['draft', 'active', 'inactive'];
+export const orderStatusValues = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
+export const paymentStatusValues = ['pending', 'initiated', 'completed', 'failed', 'refunded'];
+
+const timestamps = {
+  createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  updatedAt: timestamp('updated_at', { mode: 'date' }).notNull().defaultNow(),
+};
+
+export const users = mysqlTable(
+  'users',
+  {
+    id: varchar('id', { length: 36 }).primaryKey(),
+    name: varchar('name', { length: 120 }).notNull(),
+    email: varchar('email', { length: 255 }).notNull(),
+    passwordHash: text('password_hash').notNull(),
+    phone: varchar('phone', { length: 20 }),
+    alternatePhone: varchar('alternate_phone', { length: 20 }),
+    addressStreet: text('address_street'),
+    addressLocality: text('address_locality'),
+    addressCity: varchar('address_city', { length: 120 }),
+    addressState: varchar('address_state', { length: 120 }),
+    addressPincode: varchar('address_pincode', { length: 20 }),
+    role: mysqlEnum('role', userRoleValues).notNull().default('user'),
+    isEmailVerified: boolean('is_email_verified').notNull().default(true),
+    ...timestamps,
+  },
+  (table) => ({
+    emailIdx: uniqueIndex('users_email_unique').on(table.email),
+  })
+);
+
+export const categories = mysqlTable(
+  'categories',
+  {
+    id: varchar('id', { length: 36 }).primaryKey(),
+    name: varchar('name', { length: 120 }).notNull(),
+    slug: varchar('slug', { length: 140 }).notNull(),
+    subcategories: json('subcategories'),
+    ...timestamps,
+  },
+  (table) => ({
+    nameIdx: uniqueIndex('categories_name_unique').on(table.name),
+    slugIdx: uniqueIndex('categories_slug_unique').on(table.slug),
+  })
+);
+
+export const products = mysqlTable(
+  'products',
+  {
+    id: varchar('id', { length: 36 }).primaryKey(),
+    name: varchar('name', { length: 180 }).notNull(),
+    slug: varchar('slug', { length: 200 }).notNull(),
+    categoryId: varchar('category_id', { length: 36 }).references(() => categories.id, { onDelete: 'set null' }),
+    subcategory: varchar('subcategory', { length: 120 }),
+    description: text('description').notNull(),
+    unit: varchar('unit', { length: 30 }).notNull().default('kg'),
+    price: decimal('price', { precision: 10, scale: 2 }).notNull(),
+    originalPrice: decimal('original_price', { precision: 10, scale: 2 }),
+    gstRate: decimal('gst_rate', { precision: 5, scale: 2 }).notNull().default('0.00'),
+    hsn: varchar('hsn', { length: 20 }),
+    stock: int('stock').notNull().default(0),
+    status: mysqlEnum('status', productStatusValues).notNull().default('draft'),
+    imageUrl: text('image_url'),
+    imageUrls: json('image_urls'),
+    brand: varchar('brand', { length: 120 }),
+    tags: json('tags'),
+    features: json('features'),
+    isFeatured: boolean('is_featured').notNull().default(false),
+    ...timestamps,
+  },
+  (table) => ({
+    slugIdx: uniqueIndex('products_slug_unique').on(table.slug),
+  })
+);
+
+export const orders = mysqlTable('orders', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  orderNumber: varchar('order_number', { length: 24 }).notNull(),
+  userId: varchar('user_id', { length: 36 })
+    .notNull()
+    .references(() => users.id, { onDelete: 'cascade' }),
+  subtotal: decimal('subtotal', { precision: 10, scale: 2 }).notNull(),
+  discountedSubtotal: decimal('discounted_subtotal', { precision: 10, scale: 2 }).notNull().default('0.00'),
+  discount: decimal('discount', { precision: 10, scale: 2 }).notNull().default('0.00'),
+  totalAmount: decimal('total_amount', { precision: 10, scale: 2 }).notNull(),
+  shippingCharge: decimal('shipping_charge', { precision: 10, scale: 2 }).notNull().default('0.00'),
+  couponCode: varchar('coupon_code', { length: 64 }),
+  status: mysqlEnum('status', orderStatusValues).notNull().default('pending'),
+  paymentStatus: mysqlEnum('payment_status', paymentStatusValues).notNull().default('pending'),
+  paymentMethod: varchar('payment_method', { length: 30 }).notNull().default('cod'),
+  shippingName: varchar('shipping_name', { length: 120 }).notNull(),
+  shippingPhone: varchar('shipping_phone', { length: 20 }),
+  shippingAddress: text('shipping_address').notNull(),
+  shippingCity: varchar('shipping_city', { length: 120 }).notNull(),
+  shippingState: varchar('shipping_state', { length: 120 }).notNull(),
+  shippingPincode: varchar('shipping_pincode', { length: 20 }).notNull(),
+  adminNote: text('admin_note'),
+  razorpayOrderId: varchar('razorpay_order_id', { length: 120 }),
+  razorpayPaymentId: varchar('razorpay_payment_id', { length: 120 }),
+  razorpaySignature: text('razorpay_signature'),
+  ...timestamps,
+});
+
+export const orderItems = mysqlTable('order_items', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  orderId: varchar('order_id', { length: 36 })
+    .notNull()
+    .references(() => orders.id, { onDelete: 'cascade' }),
+  productId: varchar('product_id', { length: 36 })
+    .notNull()
+    .references(() => products.id, { onDelete: 'restrict' }),
+  name: varchar('name', { length: 180 }),
+  quantity: int('quantity').notNull(),
+  basePrice: decimal('base_price', { precision: 10, scale: 2 }),
+  unitPrice: decimal('unit_price', { precision: 10, scale: 2 }).notNull(),
+  gstRate: decimal('gst_rate', { precision: 5, scale: 2 }),
+  gstAmount: decimal('gst_amount', { precision: 10, scale: 2 }),
+  hsn: varchar('hsn', { length: 20 }),
+  lineTotal: decimal('line_total', { precision: 10, scale: 2 }).notNull(),
+});
+
+export const wishlistItems = mysqlTable(
+  'wishlist_items',
+  {
+    id: varchar('id', { length: 36 }).primaryKey(),
+    userId: varchar('user_id', { length: 36 })
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    productId: varchar('product_id', { length: 36 })
+      .notNull()
+      .references(() => products.id, { onDelete: 'cascade' }),
+    createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
+  },
+  (table) => ({
+    userProductIdx: uniqueIndex('wishlist_user_product_unique').on(table.userId, table.productId),
+  })
+);
