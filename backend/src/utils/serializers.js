@@ -68,6 +68,39 @@ export function serializeProduct(product) {
   };
 }
 
+export function serializeCoupon(coupon) {
+  if (!coupon) return null;
+
+  return {
+    id: coupon.id,
+    _id: coupon.id,
+    title: coupon.title,
+    code: coupon.code,
+    description: coupon.description || '',
+    discountType: coupon.discountType,
+    discountValue: Number(coupon.discountValue),
+    maxDiscountAmount: coupon.maxDiscountAmount == null ? null : Number(coupon.maxDiscountAmount),
+    minOrderValue: Number(coupon.minOrderValue ?? 0),
+    maxUsageCount: coupon.maxUsageCount,
+    usagePerUser: coupon.usagePerUser,
+    currentUsage: coupon.currentUsage,
+    budget: coupon.budget == null ? null : Number(coupon.budget),
+    budgetUtilized: Number(coupon.budgetUtilized ?? 0),
+    totalSales: Number(coupon.totalSales ?? 0),
+    startDate: coupon.startDate,
+    endDate: coupon.endDate,
+    isActive: coupon.isActive,
+    userGroups: coupon.userGroups,
+    allowedUserEmails: toArray(coupon.allowedUserEmails),
+    applicableProducts: toArray(coupon.applicableProducts),
+    excludedProducts: toArray(coupon.excludedProducts),
+    applicableCategories: toArray(coupon.applicableCategories),
+    createdBy: coupon.createdBy,
+    createdAt: coupon.createdAt,
+    updatedAt: coupon.updatedAt,
+  };
+}
+
 export function serializeOrder(order, items = []) {
   if (!order) return null;
 

@@ -3,6 +3,7 @@ import analyticsRoutes from './analyticsRoutes.js';
 import contentRoutes from './contentRoutes.js';
 import authRoutes from './authRoutes.js';
 import categoryRoutes from './categoryRoutes.js';
+import couponRoutes from './couponRoutes.js';
 import healthRoutes from './healthRoutes.js';
 import orderRoutes from './orderRoutes.js';
 import productRoutes from './productRoutes.js';
@@ -17,6 +18,7 @@ router.use('/api/users', userRoutes);
 router.use('/api/categories', categoryRoutes);
 router.use('/api/products', productRoutes);
 router.use('/api/orders', orderRoutes);
+router.use('/api/coupons', couponRoutes);
 router.use('/api', contentRoutes);
 
 export default router;

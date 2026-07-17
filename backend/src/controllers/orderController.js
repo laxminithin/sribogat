@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '../db/client.js';
 import { orderItems, orders, products, users } from '../db/schema.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { CouponError, recordCouponUsage, validateCouponForCart } from '../utils/coupons.js';
 import { createId } from '../utils/ids.js';
 import { serializeOrder, serializeProduct } from '../utils/serializers.js';
 
@@ -178,7 +179,29 @@ export const createOrder = asyncHandler(async (req, res) => {
     });
   }
 
-  const discount = Math.min(round2(input.discount ?? 0), subtotal);
+  // The discount comes only from a server-validated coupon — never from the
+  // client, which could otherwise name any amount.
+  let discount = 0;
+  let appliedCoupon = null;
+
+  if (input.couponCode) {
+    try {
+      const result = await validateCouponForCart({
+        code: input.couponCode,
+        userId: req.auth.userId,
+        cartTotal: subtotal,
+        items: itemRows.map((row) => ({ productId: row.productId, lineTotal: Number(row.lineTotal) })),
+      });
+      appliedCoupon = result.coupon;
+      discount = result.discount;
+    } catch (error) {
+      if (error instanceof CouponError) {
+        return res.status(error.status).json({ error: error.message });
+      }
+      throw error;
+    }
+  }
+
   const discountedSubtotal = round2(subtotal - discount);
   const shippingCharge = discountedSubtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_CHARGE;
   const totalAmount = round2(discountedSubtotal + shippingCharge);
@@ -194,7 +217,7 @@ export const createOrder = asyncHandler(async (req, res) => {
       discount: toMoney(discount),
       totalAmount: toMoney(totalAmount),
       shippingCharge: toMoney(shippingCharge),
-      couponCode: input.couponCode ?? null,
+      couponCode: appliedCoupon?.code ?? null,
       paymentMethod: input.paymentMethod ?? 'cod',
       paymentStatus: input.paymentStatus ?? 'pending',
       status: input.status ?? 'pending',
@@ -207,6 +230,27 @@ export const createOrder = asyncHandler(async (req, res) => {
     });
 
   await db.insert(orderItems).values(itemRows);
+
+  if (appliedCoupon) {
+    try {
+      await recordCouponUsage({
+        coupon: appliedCoupon,
+        userId: req.auth.userId,
+        orderId,
+        orderValue: totalAmount,
+        discount,
+      });
+    } catch (error) {
+      // A concurrent order exhausted the coupon between validation and here —
+      // undo this order (cascade removes its items) instead of honoring a
+      // discount that no longer exists.
+      await db.delete(orders).where(eq(orders.id, orderId));
+      if (error instanceof CouponError) {
+        return res.status(error.status).json({ error: error.message });
+      }
+      throw error;
+    }
+  }
 
   const order = await fetchOrderWithItems(orderId, req.auth.userId);
 

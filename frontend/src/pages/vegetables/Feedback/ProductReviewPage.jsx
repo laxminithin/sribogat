@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
 import config from '../../../config/config';
 import { Star, ShoppingBag, MessageCircle, User, X, Loader2, AlertCircle, Camera, Upload, Trash2 } from 'lucide-react';
 import { useAuth } from '../../checkout/AuthProvider';
@@ -189,7 +190,7 @@ const ProductReviewPage = () => {
   // FIXED: Submit review with proper API URL
   const handleSubmitReview = async () => {
     if (!selectedProduct || rating === 0 || !reviewText.trim()) {
-      alert('Please provide a rating and review text');
+      toast.error('Please provide a rating and review text');
       return;
     }
 
@@ -199,7 +200,7 @@ const ProductReviewPage = () => {
       const token = getAuthToken();
 
       if (!token) {
-        alert('Please log in to submit a review');
+        toast.error('Please log in to submit a review');
         return;
       }
 
@@ -245,7 +246,7 @@ const ProductReviewPage = () => {
       }, 3000);
     } catch (err) {
       console.error('💥 Submit review error:', err);
-      alert(`Error submitting review: ${err.message}`);
+      toast.error(`Error submitting review: ${err.message}`);
     } finally {
       setIsSubmitting(false);
     }

@@ -5,6 +5,7 @@ import ProductsManagement from '../pages/admin/ProductsManagement';
 import Orders from '../pages/admin/AdminOrders';
 import Customers from '../pages/admin/Customers';
 import Analytics from '../pages/admin/Analytics';
+import AdminCouponManagement from '../pages/admin/AdminCouponManagement';
 
 const AdminRoutes = () => {
   return (
@@ -14,6 +15,7 @@ const AdminRoutes = () => {
       <Route path="/orders" element={<Orders />} />
       <Route path="/customers" element={<Customers />} />
       <Route path="/analytics" element={<Analytics />} />
+      <Route path="/coupons" element={<AdminCouponManagement />} />
     </Routes>
   );
 };

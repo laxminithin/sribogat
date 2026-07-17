@@ -1,5 +1,6 @@
 import {
   boolean,
+  datetime,
   decimal,
   int,
   json,
@@ -15,6 +16,8 @@ export const userRoleValues = ['user', 'admin', 'business'];
 export const productStatusValues = ['draft', 'active', 'inactive'];
 export const orderStatusValues = ['pending', 'processing', 'shipped', 'delivered', 'cancelled'];
 export const paymentStatusValues = ['pending', 'initiated', 'completed', 'failed', 'refunded'];
+export const discountTypeValues = ['percentage', 'fixed'];
+export const couponUserGroupValues = ['all', 'new', 'premium'];
 
 const timestamps = {
   createdAt: timestamp('created_at', { mode: 'date' }).notNull().defaultNow(),
@@ -133,6 +136,62 @@ export const orderItems = mysqlTable('order_items', {
   hsn: varchar('hsn', { length: 20 }),
   lineTotal: decimal('line_total', { precision: 10, scale: 2 }).notNull(),
 });
+
+export const coupons = mysqlTable(
+  'coupons',
+  {
+    id: varchar('id', { length: 36 }).primaryKey(),
+    title: varchar('title', { length: 180 }).notNull(),
+    code: varchar('code', { length: 64 }).notNull(),
+    description: text('description'),
+    discountType: mysqlEnum('discount_type', discountTypeValues).notNull().default('percentage'),
+    discountValue: decimal('discount_value', { precision: 10, scale: 2 }).notNull(),
+    maxDiscountAmount: decimal('max_discount_amount', { precision: 10, scale: 2 }),
+    minOrderValue: decimal('min_order_value', { precision: 10, scale: 2 }).notNull().default('0.00'),
+    maxUsageCount: int('max_usage_count'),
+    usagePerUser: int('usage_per_user').notNull().default(1),
+    currentUsage: int('current_usage').notNull().default(0),
+    budget: decimal('budget', { precision: 12, scale: 2 }),
+    budgetUtilized: decimal('budget_utilized', { precision: 12, scale: 2 }).notNull().default('0.00'),
+    totalSales: decimal('total_sales', { precision: 12, scale: 2 }).notNull().default('0.00'),
+    // datetime, not timestamp: coupon end dates can exceed MySQL's 2038 TIMESTAMP limit
+    startDate: datetime('start_date', { mode: 'date' }).notNull(),
+    endDate: datetime('end_date', { mode: 'date' }).notNull(),
+    isActive: boolean('is_active').notNull().default(true),
+    userGroups: mysqlEnum('user_groups', couponUserGroupValues).notNull().default('all'),
+    allowedUserEmails: json('allowed_user_emails'),
+    applicableProducts: json('applicable_products'),
+    excludedProducts: json('excluded_products'),
+    applicableCategories: json('applicable_categories'),
+    createdBy: varchar('created_by', { length: 36 }).references(() => users.id, { onDelete: 'set null' }),
+    ...timestamps,
+  },
+  (table) => ({
+    codeIdx: uniqueIndex('coupons_code_unique').on(table.code),
+  })
+);
+
+export const couponUsages = mysqlTable(
+  'coupon_usages',
+  {
+    id: varchar('id', { length: 36 }).primaryKey(),
+    couponId: varchar('coupon_id', { length: 36 })
+      .notNull()
+      .references(() => coupons.id, { onDelete: 'cascade' }),
+    userId: varchar('user_id', { length: 36 })
+      .notNull()
+      .references(() => users.id, { onDelete: 'cascade' }),
+    orderId: varchar('order_id', { length: 36 })
+      .notNull()
+      .references(() => orders.id, { onDelete: 'cascade' }),
+    orderValue: decimal('order_value', { precision: 10, scale: 2 }).notNull(),
+    discountGiven: decimal('discount_given', { precision: 10, scale: 2 }).notNull(),
+    usedAt: timestamp('used_at', { mode: 'date' }).notNull().defaultNow(),
+  },
+  (table) => ({
+    couponOrderIdx: uniqueIndex('coupon_usages_coupon_order_unique').on(table.couponId, table.orderId),
+  })
+);
 
 export const wishlistItems = mysqlTable(
   'wishlist_items',
