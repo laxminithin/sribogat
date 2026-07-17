@@ -911,6 +911,19 @@ export const ordersApi = {
     return response.data;
   },
 
+  // PayPal (scaffold) — teamlead to wire with the PayPal Buttons SDK.
+  // createPaypalOrder({ orderId }) -> { paypalOrderId } for the SDK to approve.
+  createPaypalOrder: async (data) => {
+    const response = await api.post('/orders/paypal/create', data);
+    return response.data;
+  },
+
+  // capturePaypalOrder({ orderId, paypalOrderId }) after buyer approval.
+  capturePaypalOrder: async (data) => {
+    const response = await api.post('/orders/paypal/capture', data);
+    return response.data;
+  },
+
   // ADMIN NOTES FUNCTIONALITY
   // Update admin note for cancelled orders
   updateAdminNote: async (orderId, data) => {

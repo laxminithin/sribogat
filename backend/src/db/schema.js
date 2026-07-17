@@ -106,7 +106,7 @@ export const orders = mysqlTable('orders', {
   couponCode: varchar('coupon_code', { length: 64 }),
   status: mysqlEnum('status', orderStatusValues).notNull().default('pending'),
   paymentStatus: mysqlEnum('payment_status', paymentStatusValues).notNull().default('pending'),
-  paymentMethod: varchar('payment_method', { length: 30 }).notNull().default('cod'),
+  paymentMethod: varchar('payment_method', { length: 30 }).notNull().default('paypal'),
   shippingName: varchar('shipping_name', { length: 120 }).notNull(),
   shippingPhone: varchar('shipping_phone', { length: 20 }),
   shippingAddress: text('shipping_address').notNull(),
@@ -117,6 +117,9 @@ export const orders = mysqlTable('orders', {
   razorpayOrderId: varchar('razorpay_order_id', { length: 120 }),
   razorpayPaymentId: varchar('razorpay_payment_id', { length: 120 }),
   razorpaySignature: text('razorpay_signature'),
+  // PayPal — populated by the paypal create/capture flow. See paypalController.js.
+  paypalOrderId: varchar('paypal_order_id', { length: 120 }),
+  paypalCaptureId: varchar('paypal_capture_id', { length: 120 }),
   ...timestamps,
 });
 

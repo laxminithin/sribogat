@@ -218,7 +218,7 @@ export const createOrder = asyncHandler(async (req, res) => {
       totalAmount: toMoney(totalAmount),
       shippingCharge: toMoney(shippingCharge),
       couponCode: appliedCoupon?.code ?? null,
-      paymentMethod: input.paymentMethod ?? 'cod',
+      paymentMethod: input.paymentMethod ?? 'paypal',
       paymentStatus: input.paymentStatus ?? 'pending',
       status: input.status ?? 'pending',
       shippingName: user?.name || 'Customer',

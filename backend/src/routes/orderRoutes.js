@@ -13,9 +13,14 @@ import {
   updateAdminNote,
   updateOrderStatus,
 } from '../controllers/orderController.js';
+import { capturePaypalOrder, createPaypalOrder } from '../controllers/paypalController.js';
 import { requireAdmin, requireAuth } from '../middleware/auth.js';
 
 const router = Router();
+
+// PayPal prepaid flow (scaffold — see paypalController.js).
+router.post('/paypal/create', requireAuth, createPaypalOrder);
+router.post('/paypal/capture', requireAuth, capturePaypalOrder);
 
 router.get('/admin/all', requireAuth, requireAdmin, listAdminOrders);
 router.get('/admin/stats', requireAuth, requireAdmin, getAdminOrderStats);

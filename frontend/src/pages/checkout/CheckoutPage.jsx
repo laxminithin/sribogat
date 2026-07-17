@@ -26,7 +26,7 @@ const CheckoutPage = () => {
   
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [paymentMethod, setPaymentMethod] = useState('cod');
+  const [paymentMethod, setPaymentMethod] = useState('paypal');
   const [isProcessing, setIsProcessing] = useState(false);
   const [itemsLoaded, setItemsLoaded] = useState(false);
   const [useRegisteredAddress, setUseRegisteredAddress] = useState(true);
@@ -372,6 +372,15 @@ const CheckoutPage = () => {
       if (!createdOrder?._id && !createdOrder?.id) {
         throw new Error('Order was not created successfully');
       }
+
+      // TODO(teamlead): prepaid PayPal flow goes here. The order above is created
+      // as paymentStatus:'pending'. Before clearing the cart / navigating, drive:
+      //   const { paypalOrderId } = await ordersApi.createPaypalOrder({ orderId });
+      //   ...render PayPal Buttons, on approval:
+      //   await ordersApi.capturePaypalOrder({ orderId, paypalOrderId });
+      // Only clear the cart + show success once capture returns completed.
+      // (Backend endpoints are scaffolded in paypalController.js and return 501
+      //  until implemented — so end-to-end checkout stays blocked by design.)
 
       if (appliedCoupon && frontendTotals.discount > 0) {
         try {
@@ -1015,19 +1024,23 @@ const CheckoutPage = () => {
                   Payment Method
                 </h3>
                 <div className="space-y-3">
+                  {/* Prepaid only. COD removed — PayPal is the sole method.
+                      TODO(teamlead): replace this radio with the PayPal Buttons
+                      SDK (<PayPalButtons/>) that calls ordersApi.createPaypalOrder
+                      then ordersApi.capturePaypalOrder on approval. */}
                   <label className="group flex items-center space-x-3 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-amber-200 hover:border-amber-300 cursor-pointer transition-all duration-200 hover:bg-amber-50/50">
                     <input
                       type="radio"
                       name="payment"
-                      value="cod"
-                      checked={paymentMethod === 'cod'}
+                      value="paypal"
+                      checked={paymentMethod === 'paypal'}
                       onChange={(e) => setPaymentMethod(e.target.value)}
                       className="text-amber-600 focus:ring-amber-500 w-4 h-4 sm:w-5 sm:h-5"
                     />
                     <div className="flex items-center">
                       <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 mr-2" />
                       <span className="font-medium text-gray-700 group-hover:text-amber-700 text-sm sm:text-base">
-                        Cash on Delivery
+                        PayPal
                       </span>
                     </div>
                   </label>

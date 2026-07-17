@@ -400,21 +400,7 @@ const Orders = () => {
             const response = await api.get(`/orders/${orderId}`);
             const orderData = response.data.order;
 
-            let nextFormattedOrderNumber = '';
-try {
-  const numberResp = await api.get('/orders/next-order-number');
-  const formatted = numberResp.data.nextFormattedOrderNumber || '';
-  
-  const currentYear = new Date().getFullYear();
-  nextFormattedOrderNumber = `${currentYear}${formatted}`; // → e.g., "2025000124"
-  
-} catch (err) {
-  console.error('Error fetching formatted order number:', err);
-  nextFormattedOrderNumber = '';
-}
 
-
-            
 
             const itemsSubtotal = (orderData.items || []).reduce((sum, item) => sum + (item.price * item.quantity), 0);
             const couponDiscount = orderData.discount || 0;
@@ -843,13 +829,14 @@ try {
                         
                         @media print {
                             body { margin: 0; padding: 0; }
-                            .invoice-container { 
-                                margin: 0; 
+                            .invoice-container {
+                                margin: 0;
                                 padding: 15mm;
                                 min-height: 297mm;
                             }
+                            .no-print { display: none !important; }
                         }
-                        
+
                         @page {
                             size: A4;
                             margin: 0;
@@ -857,6 +844,7 @@ try {
                     </style>
                 </head>
                 <body>
+                    <button class="no-print" onclick="window.print()" style="position:fixed;top:16px;right:16px;z-index:1000;padding:10px 20px;background:#16a34a;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.2)">🖨️ Print Invoice</button>
                     <div class="invoice-container">
                         <!-- Header -->
                         <div class="invoice-header">
@@ -874,9 +862,9 @@ try {
                             </div>
                             <div class="invoice-details">
                                 <h2>TAX INVOICE</h2>
-                                <p><strong>Invoice #:</strong>${nextFormattedOrderNumber}</p>
+                                <p><strong>Invoice #:</strong>${orderData.invoiceNumber}</p>
                                 <p><strong>Date:</strong> ${new Date(orderData.createdAt).toLocaleDateString('en-IN')}</p>
-                                <p><strong>Order ID:</strong> ${orderData._id}</p>
+                                <p><strong>Order ID:</strong> ${orderData.formattedOrderId}</p>
                             </div>
                         </div>
 
@@ -981,7 +969,7 @@ try {
                                     <div class="gst-title">GST Summary</div>
                                     <div class="gst-row">
                                         <span>Taxable Amount:</span>
-                                        <span>₹${subtotalAfterDiscount.toFixed(2)}</span>
+                                        <span>₹${(subtotalAfterDiscount - gstBreakdown.totalGST).toFixed(2)}</span>
                                     </div>
                                     <div class="gst-row">
                                         <span>CGST:</span>
@@ -1058,12 +1046,7 @@ try {
                 printWindow.document.write(invoiceContent);
                 printWindow.document.close();
                 
-                printWindow.onload = () => {
-                    setTimeout(() => {
-                        printWindow.print();
-                        printWindow.close();
-                    }, 500);
-                };
+                printWindow.focus();
             } else {
                 throw new Error('Unable to open print window. Please allow popups.');
             }

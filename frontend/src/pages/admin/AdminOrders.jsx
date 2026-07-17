@@ -724,13 +724,14 @@ const getIndividualProductGST = (item, orderData) => {
                         
                         @media print {
                             body { margin: 0; padding: 0; }
-                            .invoice-container { 
-                                margin: 0; 
+                            .invoice-container {
+                                margin: 0;
                                 padding: 15mm;
                                 min-height: 297mm;
                             }
+                            .no-print { display: none !important; }
                         }
-                        
+
                         @page {
                             size: A4;
                             margin: 0;
@@ -738,6 +739,7 @@ const getIndividualProductGST = (item, orderData) => {
                     </style>
                 </head>
                 <body>
+                    <button class="no-print" onclick="window.print()" style="position:fixed;top:16px;right:16px;z-index:1000;padding:10px 20px;background:#16a34a;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.2)">🖨️ Print Invoice</button>
                     <div class="invoice-container">
                         <!-- Header -->
                         <div class="invoice-header">
@@ -755,9 +757,9 @@ const getIndividualProductGST = (item, orderData) => {
                             </div>
                             <div class="invoice-details">
                                 <h2>TAX INVOICE</h2>
-                                <p><strong>Invoice #:</strong>${orderData.invoiceOrderNumber}</p>
+                                <p><strong>Invoice #:</strong>${orderData.invoiceNumber}</p>
                                 <p><strong>Date:</strong> ${new Date(orderData.createdAt).toLocaleDateString('en-IN')}</p>
-                                <p><strong>Order ID:</strong> ${orderData._id}</p>
+                                <p><strong>Order ID:</strong> ${orderData.formattedOrderId}</p>
                             </div>
                         </div>
 
@@ -862,7 +864,7 @@ const getIndividualProductGST = (item, orderData) => {
                                     <div class="gst-title">GST Summary</div>
                                     <div class="gst-row">
                                         <span>Taxable Amount:</span>
-                                        <span>₹${subtotalAfterDiscount.toFixed(2)}</span>
+                                        <span>₹${(subtotalAfterDiscount - gstBreakdown.totalGST).toFixed(2)}</span>
                                     </div>
                                     <div class="gst-row">
                                         <span>CGST:</span>
@@ -940,12 +942,7 @@ const getIndividualProductGST = (item, orderData) => {
         printWindow.document.close();
         
         // Wait for content to load then print
-        printWindow.onload = () => {
-          setTimeout(() => {
-            printWindow.print();
-            printWindow.close();
-          }, 500);
-        };
+        printWindow.focus();
       } else {
         throw new Error('Unable to open print window. Please allow popups.');
       }

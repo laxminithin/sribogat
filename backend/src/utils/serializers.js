@@ -105,10 +105,25 @@ export function serializeCoupon(coupon) {
 export function serializeOrder(order, items = []) {
   if (!order) return null;
 
+  // Human-facing identifiers derived from the stored per-order sequence
+  // (orderNumber is "ORD-000001" style) so they stay stable per order and
+  // strictly increasing. Invoice #: year + 7-digit sequence (YYYY0000001).
+  // Order ID: order date + 4-digit sequence (YYYYMMDD0001).
+  // ponytail: seq is the global order counter, not a per-day reset — the
+  // date changes daily but the tail keeps counting; switch to a per-day
+  // count if a daily-reset sequence is ever required.
+  const seq = parseInt(String(order.orderNumber ?? '').replace(/\D/g, ''), 10) || 0;
+  const created = order.createdAt ? new Date(order.createdAt) : new Date();
+  const yyyy = created.getFullYear();
+  const mm = String(created.getMonth() + 1).padStart(2, '0');
+  const dd = String(created.getDate()).padStart(2, '0');
+
   return {
     id: order.id,
     _id: order.id,
     orderNumber: order.orderNumber,
+    invoiceNumber: `${yyyy}${String(seq).padStart(7, '0')}`,
+    formattedOrderId: `${yyyy}${mm}${dd}${String(seq).padStart(4, '0')}`,
     subtotal: Number(order.subtotal),
     discountedSubtotal: Number(order.discountedSubtotal ?? 0),
     discount: Number(order.discount ?? 0),
@@ -131,6 +146,10 @@ export function serializeOrder(order, items = []) {
       orderId: order.razorpayOrderId,
       paymentId: order.razorpayPaymentId,
       signature: order.razorpaySignature,
+    },
+    paypalDetails: {
+      orderId: order.paypalOrderId,
+      captureId: order.paypalCaptureId,
     },
     items,
     createdAt: order.createdAt,

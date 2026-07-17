@@ -13,6 +13,12 @@ const envSchema = z.object({
   UPLOAD_DIR: z.string().default('uploads'),
   ADMIN_EMAIL: z.string().email().optional(),
   ADMIN_PASSWORD: z.string().optional(),
+  // PayPal — scaffolded for the prepaid checkout. Optional for now so the app
+  // still boots before keys are provisioned; make CLIENT_ID/SECRET required
+  // (.min(1)) once the integration goes live. TODO(teamlead): add real keys to .env.
+  PAYPAL_MODE: z.enum(['sandbox', 'live']).default('sandbox'),
+  PAYPAL_CLIENT_ID: z.string().optional(),
+  PAYPAL_CLIENT_SECRET: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);
