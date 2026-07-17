@@ -3,9 +3,10 @@ import { and, desc, eq, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 import { me, login, register } from './authController.js';
 import { db } from '../db/client.js';
-import { orders, products, users, wishlistItems } from '../db/schema.js';
+import { orderItems, orders, products, users, wishlistItems } from '../db/schema.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { serializeProduct, serializeUser } from '../utils/serializers.js';
+import { toBoolean } from '../utils/requestParsing.js';
 
 export { login, me, register };
 
@@ -48,6 +49,8 @@ const updateProfileSchema = z.object({
 const adminUpdateCustomerSchema = updateProfileSchema.partial().extend({
   email: z.string().email().optional(),
   role: z.enum(['user', 'admin', 'business']).optional(),
+  // form-urlencoded sends this as a string; coerce "true"/"false" -> boolean
+  isPremium: z.preprocess((v) => (v === undefined ? undefined : toBoolean(v)), z.boolean().optional()),
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
@@ -116,10 +119,11 @@ export const updateCustomerByAdmin = asyncHandler(async (req, res) => {
       name: input.name,
       email: input.email?.toLowerCase(),
       phone: input.phone,
-      alternatePhone: input.alternatePhone || null,
+      alternatePhone: input.alternatePhone === undefined ? undefined : input.alternatePhone || null,
       role: input.role,
+      isPremium: input.isPremium,
       addressStreet: input.address?.street,
-      addressLocality: input.address?.locality || null,
+      addressLocality: input.address?.locality === undefined ? undefined : input.address.locality || null,
       addressCity: input.address?.city,
       addressState: input.address?.state,
       addressPincode: input.address?.pincode,
@@ -151,12 +155,34 @@ export const getUserAnalytics = asyncHandler(async (req, res) => {
 
   const totalSpent = orderRows.reduce((sum, order) => sum + Number(order.totalAmount), 0);
 
+  const orderIds = orderRows.map((order) => order.id);
+  const itemRows = orderIds.length
+    ? await db.select().from(orderItems).where(inArray(orderItems.orderId, orderIds))
+    : [];
+
+  const purchaseCounts = {};
+  for (const item of itemRows) {
+    purchaseCounts[item.productId] = (purchaseCounts[item.productId] ?? 0) + item.quantity;
+  }
+
+  const topProductIds = Object.keys(purchaseCounts)
+    .sort((a, b) => purchaseCounts[b] - purchaseCounts[a])
+    .slice(0, 6);
+  const topProductRows = topProductIds.length
+    ? await db.select().from(products).where(inArray(products.id, topProductIds))
+    : [];
+  const topProducts = topProductIds.map((id) => {
+    const product = serializeProduct(topProductRows.find((row) => row.id === id));
+    return { ...product, purchaseCount: purchaseCounts[id] };
+  });
+
   res.json({
     totalOrders: orderRows.length,
     totalSpent,
     lastOrderDate: orderRows[0]?.createdAt ?? null,
     wishlistCount: wishlistRows.length,
     monthlySpending,
+    topProducts,
   });
 });
 

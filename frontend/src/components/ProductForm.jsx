@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Upload, X, Plus, Image as ImageIcon, Trash2, Eye, ArrowUp, ArrowDown } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { productsApi } from '../services/api';
+import { resolveImageUrl, FALLBACK_IMAGE } from '../config/config';
 
 const ProductForm = ({ initialData, onSubmit, categories = [], categoriesLoading = false }) => {
   const [formData, setFormData] = useState({
@@ -517,9 +518,15 @@ const debugHSNField = () => {
                 className="relative group bg-gray-100 rounded-lg overflow-hidden aspect-square"
               >
                 <img
-                  src={image.url}
+                  // Existing images are stored as relative "/uploads/..." paths served by
+                  // the backend, so resolve them to the backend origin for the preview.
+                  // New images are local blob: URLs and must be used as-is.
+                  src={image.isExisting ? resolveImageUrl(image.url) : image.url}
                   alt={`Preview ${index + 1}`}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.src = FALLBACK_IMAGE;
+                  }}
                 />
                 
                 {index === 0 && (

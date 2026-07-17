@@ -8,6 +8,7 @@ import { createId } from '../utils/ids.js';
 import { serializeProduct } from '../utils/serializers.js';
 import { slugify } from '../utils/slug.js';
 import { toArray, toBoolean } from '../utils/requestParsing.js';
+import { deleteProductImages } from '../utils/uploads.js';
 
 const productStatusSchema = z.enum(['draft', 'active', 'inactive']);
 
@@ -468,6 +469,12 @@ export const updateProduct = asyncHandler(async (req, res) => {
     })
     .where(eq(products.id, req.params.id));
 
+  // Remove the image files the admin dropped from the product so replaced/deleted
+  // pictures don't linger on disk. New uploads and kept images stay in payload.imageUrls.
+  const keptImages = new Set(payload.imageUrls);
+  const removedImages = toArray(existing.imageUrls).filter((url) => !keptImages.has(url));
+  await deleteProductImages(removedImages);
+
   const updated = await getProductByIdRecord(req.params.id);
 
   const [serialized] = await attachCategoryMetadata([{ ...updated, categoryName: category?.name ?? '' }]);
@@ -538,6 +545,11 @@ export const deleteProduct = asyncHandler(async (req, res) => {
   }
 
   await db.delete(products).where(eq(products.id, req.params.id));
+
+  // Clean up every image file this product owned so deleting a product doesn't
+  // leave orphaned uploads behind.
+  const ownedImages = [...new Set([...toArray(existing.imageUrls), existing.imageUrl].filter(Boolean))];
+  await deleteProductImages(ownedImages);
 
   res.json({ success: true });
 });

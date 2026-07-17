@@ -11,6 +11,7 @@ export function serializeUser(user) {
     phone: user.phone,
     alternatePhone: user.alternatePhone,
     role: user.role,
+    isPremium: user.isPremium,
     isActive: true,
     isEmailVerified: user.isEmailVerified,
     address: {

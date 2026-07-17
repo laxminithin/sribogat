@@ -39,6 +39,7 @@ export const users = mysqlTable(
     addressState: varchar('address_state', { length: 120 }),
     addressPincode: varchar('address_pincode', { length: 20 }),
     role: mysqlEnum('role', userRoleValues).notNull().default('user'),
+    isPremium: boolean('is_premium').notNull().default(false),
     isEmailVerified: boolean('is_email_verified').notNull().default(true),
     ...timestamps,
   },

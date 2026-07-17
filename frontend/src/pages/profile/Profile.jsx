@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '../checkout/AuthProvider';
 import { toast } from 'react-hot-toast';
-import { User, Mail, Phone, MapPin, Building2, Save, Loader } from 'lucide-react';
+import { User, Mail, Phone, MapPin, Building2, Save, Loader, Crown } from 'lucide-react';
 import { usersApi } from '../../services/api';
 
 const INDIAN_STATES = [
@@ -155,6 +155,12 @@ const Profile = () => {
               Profile Settings
             </h1>
             <p className="text-amber-700 mt-2">Manage your account settings and preferences</p>
+            {user?.isPremium && (
+              <span className="inline-flex items-center gap-1 mt-3 px-3 py-1 rounded-full text-sm font-semibold text-white bg-gradient-to-r from-amber-400 to-orange-500 shadow-md">
+                <Crown className="w-4 h-4" />
+                Premium Member
+              </span>
+            )}
           </div>
 
           <div className="bg-white rounded-2xl shadow-xl border border-amber-200 p-8 hover:shadow-2xl transition-all duration-500">

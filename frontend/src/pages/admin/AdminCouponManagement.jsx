@@ -464,8 +464,8 @@ const AdminCouponManagement = () => {
   };
 
  const filteredCoupons = coupons.filter(coupon => {
-  const matchesSearch = coupon.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                       coupon.code.toLowerCase().includes(searchQuery.toLowerCase());
+  const matchesSearch = (coupon.title?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+                       (coupon.code?.toLowerCase() || '').includes(searchQuery.toLowerCase());
   
   if (filterStatus === 'all') return matchesSearch;
   
@@ -1103,7 +1103,7 @@ const AdminCouponManagement = () => {
                     />
                   </div>
                   {(() => {
-                    const filtered = products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()));
+                    const filtered = products.filter(p => (p.name?.toLowerCase() || '').includes(productSearch.toLowerCase()));
                     const allFilteredSelected = filtered.length > 0 && filtered.every(p => formData.applicableProducts.some(id => String(id) === String(p.id)));
                     return (
                       <button
@@ -1126,7 +1126,7 @@ const AdminCouponManagement = () => {
                 {/* Checkbox list */}
                 <div className="mt-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
                   {products
-                    .filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase()))
+                    .filter(p => (p.name?.toLowerCase() || '').includes(productSearch.toLowerCase()))
                     .map(product => {
                       const checked = formData.applicableProducts.some(id => String(id) === String(product.id));
                       return (
@@ -1147,7 +1147,7 @@ const AdminCouponManagement = () => {
                         </label>
                       );
                     })}
-                  {products.filter(p => p.name.toLowerCase().includes(productSearch.toLowerCase())).length === 0 && (
+                  {products.filter(p => (p.name?.toLowerCase() || '').includes(productSearch.toLowerCase())).length === 0 && (
                     <p className="px-3 py-4 text-sm text-gray-400 text-center">No products found</p>
                   )}
                 </div>

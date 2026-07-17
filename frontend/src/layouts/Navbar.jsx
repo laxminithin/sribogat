@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Menu, X, ShoppingCart, User, LogOut, Home, Package, Heart, BookOpen } from "lucide-react";
+import { Menu, X, ShoppingCart, User, LogOut, Home, Package, Heart, BookOpen, Crown } from "lucide-react";
 import { useCart } from "../pages/checkout/CartContext";
 import { useAuth } from "../pages/checkout/AuthProvider";
 import { Link, useNavigate, useLocation } from "react-router-dom";
@@ -183,6 +183,12 @@ const Navbar = () => {
                       <User className="w-4 h-4 md:w-5 md:h-5 text-amber-800" />
                     </div>
                     <span className="hidden lg:block font-medium text-sm">{user.name}</span>
+                    {user.isPremium && (
+                      <span className="hidden lg:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-amber-400 to-orange-500 shadow-sm">
+                        <Crown className="w-3 h-3" />
+                        Premium
+                      </span>
+                    )}
                   </button>
 
                   {showProfileMenu && (

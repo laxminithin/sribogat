@@ -32,8 +32,7 @@ export async function getUserGroup(userId) {
   const user = await db.query.users.findFirst({ where: eq(users.id, userId) });
   if (!user) return { user: null, group: 'all' };
 
-  // ponytail: no membership tier in the SQL schema — 'premium' maps to business accounts
-  if (user.role === 'business') return { user, group: 'premium' };
+  if (user.isPremium) return { user, group: 'premium' };
 
   const [existingOrder] = await db
     .select({ id: orders.id })

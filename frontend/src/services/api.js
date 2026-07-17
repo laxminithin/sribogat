@@ -89,8 +89,11 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // Handle 401 Unauthorized
-    if (error.response.status === 401) {
+    // Handle 401 Unauthorized — but NOT for login requests. A wrong password
+    // legitimately returns 401; the login page owns that error UX (shows a
+    // toast). Redirecting here would reload the page and swallow that message.
+    const isLoginRequest = /\/(admin\/)?login$/.test(error.config?.url || '');
+    if (error.response.status === 401 && !isLoginRequest) {
       const hadAdminSession =
         Boolean(localStorage.getItem('adminToken')) || Boolean(sessionStorage.getItem('adminToken'));
 
