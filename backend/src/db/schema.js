@@ -197,6 +197,29 @@ export const couponUsages = mysqlTable(
   })
 );
 
+// Single-row table (id is always 'site') holding admin-editable branding/content.
+export const siteSettings = mysqlTable('site_settings', {
+  id: varchar('id', { length: 36 }).primaryKey(),
+  brandName: varchar('brand_name', { length: 120 }),
+  // hex colours for the wordmark text gradient beside the logo
+  brandColorStart: varchar('brand_color_start', { length: 7 }),
+  brandColorEnd: varchar('brand_color_end', { length: 7 }),
+  heroTagline: varchar('hero_tagline', { length: 160 }),
+  heroHeading: varchar('hero_heading', { length: 255 }),
+  heroSubheading: text('hero_subheading'),
+  badges: json('badges'),
+  // [{ badge, name, tagline, description, features[], weight, image, backgroundImage }]
+  heroSlides: json('hero_slides'),
+  logoUrl: text('logo_url'),
+  fontFamily: varchar('font_family', { length: 120 }),
+  fontFileUrl: text('font_file_url'),
+  contactPhone: varchar('contact_phone', { length: 30 }),
+  contactEmail: varchar('contact_email', { length: 255 }),
+  footerDescription: text('footer_description'),
+  footerCopyright: varchar('footer_copyright', { length: 255 }),
+  ...timestamps,
+});
+
 export const wishlistItems = mysqlTable(
   'wishlist_items',
   {

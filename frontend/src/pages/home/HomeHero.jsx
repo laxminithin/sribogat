@@ -10,6 +10,8 @@ import {
   Coffee,
 } from "lucide-react";
 
+import { useSiteSettings } from "../../contexts/SiteSettingsContext";
+import { resolveImageUrl } from "../../config/config";
 import sample1 from "../../assets/sample1.jpeg";
 import sample2 from "../../assets/sample2.jpeg";
 import sample3 from "../../assets/sample3.jpeg";
@@ -71,37 +73,66 @@ const heroProducts = [
   },
 ];
 
-const trustPoints = [
-  {
-    icon: Coffee,
-    label: "Small Batch Crafted",
-  },
-  {
-    icon: Leaf,
-    label: "Pure Ingredients",
-  },
-  {
-    icon: ShieldCheck,
-    label: "Quality Checked",
-  },
+const badgeIcons = [Coffee, Leaf, ShieldCheck];
+
+const slideAccents = [
+  "from-amber-500 via-orange-500 to-yellow-500",
+  "from-stone-500 via-orange-500 to-amber-500",
+  "from-lime-500 via-emerald-500 to-amber-500",
 ];
 
+// mixes a hex colour toward white for the light end of an accent gradient
+export const lightenHex = (hex, amount = 0.35) => {
+  const n = parseInt(hex.slice(1), 16);
+  const mix = (c) => Math.round(c + (255 - c) * amount);
+  return `rgb(${mix((n >> 16) & 255)}, ${mix((n >> 8) & 255)}, ${mix(n & 255)})`;
+};
+
+export const accentGradient = (color) =>
+  `linear-gradient(90deg, ${color}, ${lightenHex(color)})`;
+
 const HomeHero = () => {
+  const { settings } = useSiteSettings();
   const [currentSlide, setCurrentSlide] = useState(0);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const navigate = useNavigate();
+
+  // admin-saved slides override the bundled defaults; missing images fall back to bundled assets
+  const slides = settings.heroSlides?.length
+    ? settings.heroSlides.map((slide, index) => ({
+        id: index + 1,
+        name: slide.name,
+        tagline: slide.tagline,
+        description: slide.description,
+        features: slide.features ?? [],
+        badge: slide.badge,
+        weight: slide.weight,
+        accentColor: slide.accentColor ?? "",
+        image: slide.image
+          ? resolveImageUrl(slide.image)
+          : heroProducts[index % heroProducts.length].image,
+        backgroundImage: slide.backgroundImage
+          ? resolveImageUrl(slide.backgroundImage)
+          : heroProducts[index % heroProducts.length].backgroundImage,
+        accent: slideAccents[index % slideAccents.length],
+      }))
+    : heroProducts;
+
+  useEffect(() => {
+    if (currentSlide >= slides.length) setCurrentSlide(0);
+  }, [slides.length, currentSlide]);
 
   useEffect(() => {
     const interval = setInterval(() => {
       setIsTransitioning(true);
       setTimeout(() => {
-        setCurrentSlide((prev) => (prev + 1) % heroProducts.length);
+        setCurrentSlide((prev) => (prev + 1) % slides.length);
         setTimeout(() => setIsTransitioning(false), 100);
       }, 260);
     }, 6500);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [slides.length]);
 
   const handleSlideChange = (index) => {
     if (index === currentSlide || isTransitioning) return;
@@ -113,12 +144,13 @@ const HomeHero = () => {
     }, 260);
   };
 
-  const currentProduct = heroProducts[currentSlide];
+  const currentProduct = slides[currentSlide] ?? slides[0];
+  const headingLines = settings.heroHeading.split("\n").filter((line) => line.trim());
 
   return (
     <section className="relative overflow-hidden bg-[#1f130d]">
       <div className="absolute inset-0">
-        {heroProducts.map((product, index) => (
+        {slides.map((product, index) => (
           <div
             key={product.id}
             className={`absolute inset-0 transition-all duration-700 ${
@@ -145,32 +177,39 @@ const HomeHero = () => {
           <div className="max-w-2xl">
             <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.24em] text-amber-100 shadow-lg shadow-black/10 backdrop-blur-md">
               <Sparkles className="h-4 w-4 text-amber-300" />
-              Estate Coffee and Heritage Spices
+              {settings.heroTagline}
             </div>
 
             <h1 className="mt-6 max-w-3xl text-4xl font-black leading-[0.95] text-white sm:text-5xl lg:text-7xl">
-              SRI BOGAT
-              <span className="mt-3 block bg-gradient-to-r from-[#ffe5b8] via-[#f8c47a] to-[#f59b52] bg-clip-text text-transparent">
-                Authentic flavour,
-              </span>
-              <span className="mt-2 block text-white/92">crafted with care.</span>
+              {settings.brandName}
+              {headingLines.map((line, index) => (
+                <span
+                  key={index}
+                  className={
+                    index === 0
+                      ? "mt-3 block bg-gradient-to-r from-[#ffe5b8] via-[#f8c47a] to-[#f59b52] bg-clip-text text-transparent"
+                      : "mt-2 block text-white/92"
+                  }
+                >
+                  {line}
+                </span>
+              ))}
             </h1>
 
             <p className="mt-6 max-w-2xl text-base leading-8 text-white/80 sm:text-lg">
-              Premium spices and coffee sourced with discipline, packed with character, and
-              delivered for kitchens that care about aroma, purity, and everyday excellence.
+              {settings.heroSubheading}
             </p>
 
             <div className="mt-8 flex flex-wrap gap-3">
-              {trustPoints.map((point) => {
-                const Icon = point.icon;
+              {settings.badges.map((label, index) => {
+                const Icon = badgeIcons[index % badgeIcons.length];
                 return (
                   <div
-                    key={point.label}
+                    key={label}
                     className="inline-flex items-center gap-2 rounded-full border border-white/12 bg-white/10 px-4 py-2 text-sm font-medium text-white/90 backdrop-blur-md"
                   >
                     <Icon className="h-4 w-4 text-amber-300" />
-                    {point.label}
+                    {label}
                   </div>
                 );
               })}
@@ -182,7 +221,14 @@ const HomeHero = () => {
                   Featured Today
                 </span>
                 <span
-                  className={`rounded-full bg-gradient-to-r px-3 py-1 text-xs font-bold text-white shadow-lg ${currentProduct.accent}`}
+                  className={`rounded-full bg-gradient-to-r px-3 py-1 text-xs font-bold text-white shadow-lg ${
+                    currentProduct.accentColor ? "" : currentProduct.accent
+                  }`}
+                  style={
+                    currentProduct.accentColor
+                      ? { background: accentGradient(currentProduct.accentColor) }
+                      : undefined
+                  }
                 >
                   {currentProduct.badge}
                 </span>
@@ -240,29 +286,43 @@ const HomeHero = () => {
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#25140d]/65 via-transparent to-transparent" />
 
-                <div className="absolute left-4 top-4 rounded-full bg-[#7c360d] px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-white shadow-lg">
+                <div
+                  className="absolute left-4 top-4 rounded-full bg-[#7c360d] px-4 py-2 text-xs font-bold uppercase tracking-[0.18em] text-white shadow-lg"
+                  style={
+                    currentProduct.accentColor
+                      ? { backgroundColor: currentProduct.accentColor }
+                      : undefined
+                  }
+                >
                   {currentProduct.badge}
                 </div>
-                <div className="absolute bottom-4 right-4 rounded-full bg-[#f59b52] px-4 py-2 text-sm font-bold text-white shadow-lg">
+                <div
+                  className="absolute bottom-4 right-4 rounded-full bg-[#f59b52] px-4 py-2 text-sm font-bold text-white shadow-lg"
+                  style={
+                    currentProduct.accentColor
+                      ? { backgroundColor: currentProduct.accentColor }
+                      : undefined
+                  }
+                >
                   {currentProduct.weight}
                 </div>
 
                 <div className="absolute bottom-4 left-4 max-w-[75%] rounded-2xl border border-white/12 bg-black/30 p-4 backdrop-blur-md">
-                  <p className="text-xs uppercase tracking-[0.24em] text-amber-200">SRI BOGAT Select</p>
+                  <p className="text-xs uppercase tracking-[0.24em] text-amber-200">{settings.brandName} Select</p>
                   <h3 className="mt-2 text-xl font-bold text-white">{currentProduct.name}</h3>
                   <p className="mt-1 text-sm text-white/75">{currentProduct.tagline}</p>
                 </div>
 
                 <button
                   onClick={() =>
-                    handleSlideChange(currentSlide === 0 ? heroProducts.length - 1 : currentSlide - 1)
+                    handleSlideChange(currentSlide === 0 ? slides.length - 1 : currentSlide - 1)
                   }
                   className="absolute left-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-white/80 text-[#7b3b0e] shadow-lg transition hover:scale-105 hover:bg-white"
                 >
                   <ChevronLeft className="h-5 w-5" />
                 </button>
                 <button
-                  onClick={() => handleSlideChange((currentSlide + 1) % heroProducts.length)}
+                  onClick={() => handleSlideChange((currentSlide + 1) % slides.length)}
                   className="absolute right-4 top-1/2 flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full border border-white/20 bg-white/80 text-[#7b3b0e] shadow-lg transition hover:scale-105 hover:bg-white"
                 >
                   <ChevronRight className="h-5 w-5" />
@@ -270,7 +330,7 @@ const HomeHero = () => {
               </div>
 
               <div className="mt-5 grid grid-cols-3 gap-3">
-                {heroProducts.map((product, index) => (
+                {slides.map((product, index) => (
                   <button
                     key={product.id}
                     onClick={() => handleSlideChange(index)}
@@ -306,7 +366,7 @@ const HomeHero = () => {
             Premium pantry essentials designed for repeat purchase, not just shelf appeal.
           </div>
           <div className="flex items-center gap-3">
-            {heroProducts.map((product, index) => (
+            {slides.map((product, index) => (
               <button
                 key={product.id}
                 onClick={() => handleSlideChange(index)}

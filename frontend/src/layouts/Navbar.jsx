@@ -4,9 +4,12 @@ import { useCart } from "../pages/checkout/CartContext";
 import { useAuth } from "../pages/checkout/AuthProvider";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import logoImage from '../assets/Sri_Bogat_logo.png';
+import { useSiteSettings } from '../contexts/SiteSettingsContext';
+import { resolveImageUrl } from '../config/config';
 
 const Navbar = () => {
   const { state } = useCart();
+  const { settings } = useSiteSettings();
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -127,17 +130,22 @@ const Navbar = () => {
                 <div className="flex items-center space-x-2 md:space-x-3">
                   {/* Logo Image - Made bigger */}
                   <img 
-                     src={logoImage}
+                     src={settings.logoUrl ? resolveImageUrl(settings.logoUrl) : logoImage}
                     alt="Bogat Logo" 
                     className={`transition-all duration-300 object-contain ${
                       isScrolled ? 'h-10 w-10 md:h-12 md:w-12' : 'h-12 w-12 md:h-16 md:w-16'
                     }`}
                   />
                   {/* Logo Text - Made smaller and removed brown color */}
-                  <div className={`font-bold tracking-wider transition-all duration-300 text-transparent bg-clip-text bg-gradient-to-r from-[#4B2E2B] to-[#dd9941] ${
-                    isScrolled ? 'text-lg md:text-xl' : 'text-xl md:text-2xl'
-                  }`}>
-                    SRI BOGAT
+                  <div
+                    className={`font-bold tracking-wider transition-all duration-300 text-transparent bg-clip-text ${
+                      isScrolled ? 'text-lg md:text-xl' : 'text-xl md:text-2xl'
+                    }`}
+                    style={{
+                      backgroundImage: `linear-gradient(to right, ${settings.brandColorStart}, ${settings.brandColorEnd})`,
+                    }}
+                  >
+                    {settings.brandName}
                   </div>
                 </div>
               </Link>
