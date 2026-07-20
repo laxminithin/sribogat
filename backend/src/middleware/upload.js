@@ -7,6 +7,14 @@ const uploadDir = path.resolve(process.cwd(), env.UPLOAD_DIR, 'products');
 
 fs.mkdirSync(uploadDir, { recursive: true });
 
+// fileFilter rejections are client mistakes — tag them 400 so errorHandler
+// answers "bad request" instead of a generic 500.
+function badUpload(message) {
+  const error = new Error(message);
+  error.statusCode = 400;
+  return error;
+}
+
 const storage = multer.diskStorage({
   destination: uploadDir,
   filename: (req, file, cb) => {
@@ -17,7 +25,7 @@ const storage = multer.diskStorage({
 
 function fileFilter(req, file, cb) {
   if (!file.mimetype.startsWith('image/')) {
-    cb(new Error('Only image uploads are allowed'));
+    cb(badUpload('Only image uploads are allowed'));
     return;
   }
 
@@ -50,7 +58,7 @@ const FONT_EXTENSIONS = new Set(['.ttf', '.woff', '.woff2']);
 function settingsFileFilter(req, file, cb) {
   if (file.fieldname === 'logo' || /^slide(Image|Bg)_\d+$/.test(file.fieldname)) {
     if (!file.mimetype.startsWith('image/')) {
-      cb(new Error('Logo and slide uploads must be images (PNG, JPG or SVG)'));
+      cb(badUpload('Logo and slide uploads must be images (PNG, JPG or SVG)'));
       return;
     }
     cb(null, true);
@@ -59,14 +67,14 @@ function settingsFileFilter(req, file, cb) {
 
   if (file.fieldname === 'font') {
     if (!FONT_EXTENSIONS.has(path.extname(file.originalname).toLowerCase())) {
-      cb(new Error('Font must be a .ttf, .woff or .woff2 file'));
+      cb(badUpload('Font must be a .ttf, .woff or .woff2 file'));
       return;
     }
     cb(null, true);
     return;
   }
 
-  cb(new Error('Unexpected upload field'));
+  cb(badUpload('Unexpected upload field'));
 }
 
 export const settingsUpload = multer({

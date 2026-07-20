@@ -45,6 +45,12 @@ export function errorHandler(error, req, res, next) {
     });
   }
 
+  // Multer rejects bad uploads (file too large, too many files, disallowed type
+  // from fileFilter) — these are client mistakes, so answer 400 rather than 500.
+  if (error.name === 'MulterError') {
+    return res.status(400).json({ error: error.message });
+  }
+
   logger.error(error);
 
   // Intentional app errors carry a statusCode and a message meant for the user.

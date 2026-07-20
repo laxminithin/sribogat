@@ -1,4 +1,4 @@
-import { and, desc, eq, ne } from 'drizzle-orm';
+import { and, count, desc, eq, ne } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../db/client.js';
 import { couponUsages, coupons, orders } from '../db/schema.js';
@@ -58,6 +58,15 @@ function couponFail(res, error) {
     return res.status(error.status).json({ success: false, error: error.message });
   }
   throw error;
+}
+
+// Customer-facing coupon shape: same as serializeCoupon minus allowedUserEmails,
+// which would otherwise leak other customers' emails to any authenticated user.
+function toPublicCoupon(coupon) {
+  const serialized = serializeCoupon(coupon);
+  if (!serialized) return serialized;
+  const { allowedUserEmails, ...rest } = serialized;
+  return rest;
 }
 
 async function findCouponOr404(id, res) {
@@ -248,18 +257,28 @@ export const getAvailableCoupons = asyncHandler(async (req, res) => {
   const now = new Date();
   const email = user.email.toLowerCase();
 
+  // How many times this user has already redeemed each coupon, so we can hide
+  // ones they've exhausted (they'd otherwise show as usable then fail at checkout).
+  const usageRows = await db
+    .select({ couponId: couponUsages.couponId, value: count() })
+    .from(couponUsages)
+    .where(eq(couponUsages.userId, user.id))
+    .groupBy(couponUsages.couponId);
+  const usageByCoupon = new Map(usageRows.map((row) => [row.couponId, Number(row.value)]));
+
   const available = rows
     .filter((coupon) => {
       if (couponStatusReason(coupon, now)) return false;
       if (coupon.userGroups !== 'all' && coupon.userGroups !== group) return false;
       const allowed = (coupon.allowedUserEmails ?? []).map((value) => String(value).toLowerCase());
       if (allowed.length && !allowed.includes(email)) return false;
+      if ((usageByCoupon.get(coupon.id) ?? 0) >= coupon.usagePerUser) return false;
       return true;
     })
     .map((coupon) => {
       const meetsMinOrder = cartTotal >= Number(coupon.minOrderValue);
       return {
-        ...serializeCoupon(coupon),
+        ...toPublicCoupon(coupon),
         canUse: meetsMinOrder,
         reason: meetsMinOrder ? null : `Minimum order value: ₹${Number(coupon.minOrderValue)}`,
       };
@@ -288,7 +307,7 @@ export const validateCoupon = asyncHandler(async (req, res) => {
       success: true,
       message: 'Coupon is valid',
       data: {
-        coupon: serializeCoupon(coupon),
+        coupon: toPublicCoupon(coupon),
         discount,
         applicableAmount,
         finalAmount: Math.max(0, Number(cartTotal) - discount),
@@ -319,7 +338,7 @@ export const getCouponSuggestions = asyncHandler(async (req, res) => {
         items,
       });
       suggestions.push({
-        ...serializeCoupon(coupon),
+        ...toPublicCoupon(coupon),
         discount,
         newTotal: Math.max(0, Number(cartTotal) - discount),
         savings: discount,

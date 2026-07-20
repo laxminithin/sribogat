@@ -11,7 +11,7 @@ import { useCart } from "../checkout/CartContext";
 import { useAuth } from '../checkout/AuthProvider';
 import { toast } from 'react-hot-toast';
 import { usersApi, productsApi } from '../../services/api';
-import { resolveImageUrl, FALLBACK_IMAGE } from '../../config/config';
+import config, { resolveImageUrl, FALLBACK_IMAGE } from '../../config/config';
 import { getPriceData } from '../../utils/pricing';
 import { Link } from 'react-router-dom';
 
@@ -332,7 +332,7 @@ const ProductDetailPage = () => {
     try {
       setReviewsLoading(true);
       
-      const reviewsResponse = await fetch(`${import.meta.env.VITE_API_URL}/reviews/verified/product/${id}`);
+      const reviewsResponse = await fetch(`${config.API_URL}/reviews/verified/product/${id}`);
       const reviewsData = await reviewsResponse.json();
       
       if (reviewsResponse.ok && reviewsData.success) {
@@ -385,7 +385,7 @@ const ProductDetailPage = () => {
     try {
       console.log('Checking if user can review product:', id);
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/reviews/can-review/${id}`, {
+      const response = await fetch(`${config.API_URL}/reviews/can-review/${id}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('kissanbandi_token') || sessionStorage.getItem('kissanbandi_token')}`,
@@ -467,7 +467,7 @@ const ProductDetailPage = () => {
         images: formData.images.length
       });
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/reviews`, {
+      const response = await fetch(`${config.API_URL}/reviews`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('kissanbandi_token') || sessionStorage.getItem('kissanbandi_token')}`

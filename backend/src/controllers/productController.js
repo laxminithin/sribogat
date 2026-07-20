@@ -352,7 +352,11 @@ export const listProducts = asyncHandler(async (req, res) => {
   const subcategoryFilter = req.query.subcategory?.toString().trim().toLowerCase();
   const featuredOnly = req.query.featured === 'true';
 
+  // Only admins may see draft/inactive products; everyone else gets active only.
+  const isAdmin = req.auth?.role === 'admin';
+
   const filtered = rows.filter((row) => {
+    if (!isAdmin && row.status !== 'active') return false;
     if (featuredOnly && !row.isFeatured) return false;
     if (categoryFilter && row.category?.toLowerCase() !== categoryFilter) return false;
     if (subcategoryFilter && row.subcategory?.toLowerCase() !== subcategoryFilter) return false;
@@ -371,7 +375,9 @@ export const getProductById = asyncHandler(async (req, res) => {
     where: eq(products.id, req.params.id),
   });
 
-  if (!product) {
+  // Draft/inactive products are only visible to admins — anyone else gets a 404.
+  const isAdmin = req.auth?.role === 'admin';
+  if (!product || (!isAdmin && product.status !== 'active')) {
     return res.status(404).json({ error: 'Product not found' });
   }
 

@@ -9,6 +9,25 @@ function parseDate(value, fallback = null) {
   return Number.isNaN(parsed.getTime()) ? fallback : parsed;
 }
 
+// A date-only endDate ("2026-07-18") parses to UTC midnight, which would exclude
+// that whole day from an inclusive range. Roll a UTC-midnight endDate to the end
+// of the day (in UTC, matching how startDate is parsed) so the selected end date
+// is included; leave a time-bearing value as-is. Checked in UTC so it works
+// regardless of the server's timezone.
+function parseEndDate(value, fallback = null) {
+  const parsed = parseDate(value, fallback);
+  if (
+    parsed &&
+    parsed.getUTCHours() === 0 &&
+    parsed.getUTCMinutes() === 0 &&
+    parsed.getUTCSeconds() === 0 &&
+    parsed.getUTCMilliseconds() === 0
+  ) {
+    parsed.setUTCHours(23, 59, 59, 999);
+  }
+  return parsed;
+}
+
 function inRange(dateValue, startDate, endDate) {
   const value = new Date(dateValue);
   if (startDate && value < startDate) return false;
@@ -36,7 +55,7 @@ function toCsv(rows) {
 
 export const getDashboardStats = asyncHandler(async (req, res) => {
   const startDate = parseDate(req.query.startDate);
-  const endDate = parseDate(req.query.endDate);
+  const endDate = parseEndDate(req.query.endDate);
 
   const orderRows = (await db.select().from(orders).orderBy(desc(orders.createdAt))).filter((order) =>
     inRange(order.createdAt, startDate, endDate)
@@ -119,7 +138,7 @@ export const getDashboardStats = asyncHandler(async (req, res) => {
 export const exportAnalyticsData = asyncHandler(async (req, res) => {
   const type = req.query.type?.toString() ?? 'orders';
   const startDate = parseDate(req.query.startDate);
-  const endDate = parseDate(req.query.endDate);
+  const endDate = parseEndDate(req.query.endDate);
 
   if (type === 'customers') {
     const userRows = await db.select().from(users).orderBy(desc(users.createdAt));

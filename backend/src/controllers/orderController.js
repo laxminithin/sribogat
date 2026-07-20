@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../db/client.js';
 import { orderItems, orders, products, users } from '../db/schema.js';
@@ -26,8 +26,6 @@ const createOrderSchema = z.object({
   shipping: z.coerce.number().nonnegative().optional(),
   couponCode: z.string().nullable().optional(),
   paymentMethod: z.string().optional(),
-  paymentStatus: z.enum(['pending', 'initiated', 'completed', 'failed', 'refunded']).optional(),
-  status: z.enum(['pending', 'processing', 'shipped', 'delivered', 'cancelled']).optional(),
   shippingAddress: z.object({
     address: z.string().min(1),
     city: z.string().min(1),
@@ -51,6 +49,16 @@ function toMoney(value) {
 
 function round2(value) {
   return Math.round(Number(value ?? 0) * 100) / 100;
+}
+
+// Release stock reserved for an order that ended up not being created.
+async function restoreStock(rows) {
+  for (const row of rows) {
+    await db
+      .update(products)
+      .set({ stock: sql`${products.stock} + ${row.quantity}` })
+      .where(eq(products.id, row.productId));
+  }
 }
 
 const FREE_SHIPPING_THRESHOLD = 500;
@@ -206,9 +214,25 @@ export const createOrder = asyncHandler(async (req, res) => {
   const shippingCharge = discountedSubtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_CHARGE;
   const totalAmount = round2(discountedSubtotal + shippingCharge);
 
-  await db
-    .insert(orders)
-    .values({
+  // Reserve stock atomically before creating the order. The `stock >= quantity`
+  // guard is the same conditional-update pattern recordCouponUsage uses — it
+  // stops two concurrent orders from overselling the same unit. Bail (and release
+  // whatever was already taken) the moment one item can't be satisfied.
+  const reserved = [];
+  for (const row of itemRows) {
+    const [result] = await db
+      .update(products)
+      .set({ stock: sql`${products.stock} - ${row.quantity}` })
+      .where(and(eq(products.id, row.productId), gte(products.stock, row.quantity)));
+    if (!result.affectedRows) {
+      await restoreStock(reserved);
+      return res.status(400).json({ error: `Insufficient stock for ${row.name}` });
+    }
+    reserved.push(row);
+  }
+
+  try {
+    await db.insert(orders).values({
       id: orderId,
       orderNumber,
       userId: req.auth.userId,
@@ -219,8 +243,10 @@ export const createOrder = asyncHandler(async (req, res) => {
       shippingCharge: toMoney(shippingCharge),
       couponCode: appliedCoupon?.code ?? null,
       paymentMethod: input.paymentMethod ?? 'paypal',
-      paymentStatus: input.paymentStatus ?? 'pending',
-      status: input.status ?? 'pending',
+      // A new order is always unpaid and pending — the customer can't set these.
+      // Payment status advances via the payment flow; order status via admin.
+      paymentStatus: 'pending',
+      status: 'pending',
       shippingName: user?.name || 'Customer',
       shippingPhone: input.shippingAddress.phone ?? user?.phone ?? null,
       shippingAddress: input.shippingAddress.address,
@@ -229,10 +255,9 @@ export const createOrder = asyncHandler(async (req, res) => {
       shippingPincode: input.shippingAddress.pincode,
     });
 
-  await db.insert(orderItems).values(itemRows);
+    await db.insert(orderItems).values(itemRows);
 
-  if (appliedCoupon) {
-    try {
+    if (appliedCoupon) {
       await recordCouponUsage({
         coupon: appliedCoupon,
         userId: req.auth.userId,
@@ -240,16 +265,18 @@ export const createOrder = asyncHandler(async (req, res) => {
         orderValue: totalAmount,
         discount,
       });
-    } catch (error) {
-      // A concurrent order exhausted the coupon between validation and here —
-      // undo this order (cascade removes its items) instead of honoring a
-      // discount that no longer exists.
-      await db.delete(orders).where(eq(orders.id, orderId));
-      if (error instanceof CouponError) {
-        return res.status(error.status).json({ error: error.message });
-      }
-      throw error;
     }
+  } catch (error) {
+    // Anything after reservation failed (a concurrent order exhausted the coupon,
+    // or an insert hiccuped) — undo the order (cascade removes its items) and
+    // release the reserved stock so nothing is silently swallowed. Deleting a
+    // never-inserted order id is a harmless no-op.
+    await db.delete(orders).where(eq(orders.id, orderId));
+    await restoreStock(reserved);
+    if (error instanceof CouponError) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    throw error;
   }
 
   const order = await fetchOrderWithItems(orderId, req.auth.userId);
