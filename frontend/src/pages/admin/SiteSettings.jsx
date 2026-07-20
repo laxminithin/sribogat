@@ -12,6 +12,9 @@ import {
   ChevronUp,
   ChevronDown,
   Trash2,
+  RotateCcw,
+  AlertTriangle,
+  Info,
 } from 'lucide-react';
 import api from '../../services/api';
 import { resolveImageUrl } from '../../config/config';
@@ -129,6 +132,42 @@ const SectionCard = ({ icon: Icon, title, subtitle, children }) => (
   </section>
 );
 
+// "i" button that reveals recommended upload dimensions on hover / tap
+const ImageSpecInfo = ({ title, size, ratio, formats, tip, pos = 'top', align = 'center' }) => (
+  <span className="group relative inline-flex">
+    <button
+      type="button"
+      className="flex h-5 w-5 items-center justify-center rounded-full border border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-400 transition"
+      aria-label={`${title} — image guidelines`}
+    >
+      <Info className="h-3 w-3" />
+    </button>
+    <span
+      className={`pointer-events-none absolute z-30 w-72 rounded-xl border border-amber-200 bg-white p-4 text-left shadow-xl opacity-0 transition-opacity duration-150 group-hover:opacity-100 group-focus-within:opacity-100 ${
+        pos === 'top' ? 'bottom-full mb-2' : 'top-full mt-2'
+      } ${align === 'left' ? 'left-0' : 'left-1/2 -translate-x-1/2'}`}
+    >
+      <span className="block text-xs font-bold uppercase tracking-wide text-amber-900">{title}</span>
+      <span className="mt-2 block space-y-1.5">
+        {[
+          ['Recommended size', size],
+          ['Aspect ratio', ratio],
+          ['Format', formats],
+          ['Max file size', '10 MB'],
+        ].map(([key, value]) => (
+          <span key={key} className="flex items-baseline justify-between gap-3 text-xs">
+            <span className="text-amber-600">{key}</span>
+            <span className="text-right font-semibold text-amber-900">{value}</span>
+          </span>
+        ))}
+      </span>
+      <span className="mt-2 block border-t border-amber-100 pt-2 text-[11px] leading-4 text-amber-600">
+        {tip}
+      </span>
+    </span>
+  </span>
+);
+
 const SiteSettings = () => {
   const { refresh } = useSiteSettings();
 
@@ -143,6 +182,8 @@ const SiteSettings = () => {
   const [fontPreview, setFontPreview] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [resetting, setResetting] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   const applyServerSettings = (data) => {
     const merged = mergeWithDefaults(data);
@@ -265,6 +306,27 @@ const SiteSettings = () => {
     });
     clearFontFile();
     toast('Changes discarded');
+  };
+
+  const handleReset = async () => {
+    setShowResetConfirm(false);
+    setResetting(true);
+    try {
+      const { data } = await api.delete('/settings');
+      applyServerSettings(data);
+      setLogoFile(null);
+      setLogoPreview((prev) => {
+        if (prev) URL.revokeObjectURL(prev);
+        return null;
+      });
+      clearFontFile();
+      refresh();
+      toast.success('Site settings restored to defaults');
+    } catch (error) {
+      toast.error(error.response?.data?.error || 'Failed to reset settings');
+    } finally {
+      setResetting(false);
+    }
   };
 
   const handleSave = async () => {
@@ -630,7 +692,7 @@ const SiteSettings = () => {
                       <span className="text-xs text-amber-600">Default (auto) — used on badge &amp; weight chips</span>
                     )}
                   </div>
-                  <div className="flex flex-wrap gap-3 pt-1">
+                  <div className="flex flex-wrap items-center gap-2 pt-1">
                     <label className={uploadBtnClass}>
                       <Upload className="w-3.5 h-3.5" />
                       {slide.imageFile ? 'Change product photo' : 'Product photo'}
@@ -641,6 +703,13 @@ const SiteSettings = () => {
                         onChange={handleSlideFile(index, 'image')}
                       />
                     </label>
+                    <ImageSpecInfo
+                      title="Slide product photo"
+                      size="1000 × 1000 px"
+                      ratio="Square (1:1)"
+                      formats="JPG or PNG"
+                      tip="Shown centre-cropped in the hero card and as a small thumbnail — keep the product centred with a little margin around it."
+                    />
                     <label className={uploadBtnClass}>
                       <Upload className="w-3.5 h-3.5" />
                       {slide.bgFile ? 'Change background' : 'Background image'}
@@ -651,6 +720,13 @@ const SiteSettings = () => {
                         onChange={handleSlideFile(index, 'bg')}
                       />
                     </label>
+                    <ImageSpecInfo
+                      title="Slide background"
+                      size="1920 × 1080 px"
+                      ratio="Wide (16:9)"
+                      formats="JPG or PNG"
+                      tip="Fills the whole homepage hero behind a dark overlay — darker, less busy photos look best and load faster."
+                    />
                   </div>
                 </div>
 
@@ -778,7 +854,18 @@ const SiteSettings = () => {
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium text-amber-900 mb-2">Site logo</label>
+            <div className="mb-2 flex items-center gap-2">
+              <label className="block text-sm font-medium text-amber-900">Site logo</label>
+              <ImageSpecInfo
+                title="Site logo"
+                size="512 × 512 px"
+                ratio="Square (1:1)"
+                formats="PNG or SVG (transparent)"
+                tip="Shown small in the header and hero — a bold, centred mark on a transparent background scales best."
+                pos="bottom"
+                align="left"
+              />
+            </div>
             <div className="flex items-center gap-6">
               <div className="text-center">
                 <div className="h-24 w-24 rounded-xl border border-amber-200 bg-amber-50 flex items-center justify-center overflow-hidden">
@@ -809,7 +896,6 @@ const SiteSettings = () => {
                 onChange={handleLogoFile}
               />
             </label>
-            <p className="mt-1 text-xs text-amber-600">PNG, JPG or SVG, up to 10 MB.</p>
           </div>
 
           <div>
@@ -907,11 +993,76 @@ const SiteSettings = () => {
         </div>
       </SectionCard>
 
+      {/* Section 5 — Reset to defaults */}
+      <section className="rounded-2xl border border-red-200 bg-red-50/60 overflow-hidden">
+        <div className="flex flex-wrap items-center justify-between gap-4 px-6 py-5">
+          <div>
+            <h2 className="text-lg font-semibold text-red-800">Reset to defaults</h2>
+            <p className="mt-1 text-xs text-red-600 max-w-xl">
+              Removes all saved customisations — branding, hero content, slides, fonts, contact and
+              footer details — and restores the original site look. This cannot be undone.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowResetConfirm(true)}
+            disabled={saving || resetting}
+            className="inline-flex items-center gap-2 rounded-lg border border-red-300 bg-white px-5 py-2.5 text-sm font-semibold text-red-700 hover:bg-red-600 hover:text-white hover:border-red-600 transition disabled:opacity-50"
+          >
+            <RotateCcw className="w-4 h-4" />
+            {resetting ? 'Resetting…' : 'Reset to defaults'}
+          </button>
+        </div>
+      </section>
+
+      {/* Reset confirmation modal */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <div
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm transition-opacity"
+            aria-hidden="true"
+            onClick={() => setShowResetConfirm(false)}
+          />
+          <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl overflow-hidden">
+            <div className="p-6 text-center">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-100">
+                <AlertTriangle className="h-7 w-7 text-red-600" />
+              </div>
+              <h3 className="mt-4 text-lg font-bold text-gray-900">Reset site settings?</h3>
+              <p className="mt-2 text-sm leading-6 text-gray-500">
+                This will remove all your saved customisations — branding, hero content, slides,
+                fonts, contact and footer details — and restore the original site look.
+              </p>
+              <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-red-600">
+                This action cannot be undone
+              </p>
+            </div>
+            <div className="flex gap-3 border-t border-gray-100 bg-gray-50 px-6 py-4">
+              <button
+                type="button"
+                onClick={() => setShowResetConfirm(false)}
+                className="flex-1 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 transition"
+              >
+                Keep my settings
+              </button>
+              <button
+                type="button"
+                onClick={handleReset}
+                className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2.5 text-sm font-bold text-white shadow-lg hover:bg-red-700 transition"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Yes, reset
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="flex items-center justify-end gap-3 pb-8">
         <button
           type="button"
           onClick={handleCancel}
-          disabled={saving}
+          disabled={saving || resetting}
           className="rounded-lg border border-amber-300 px-6 py-2.5 text-sm font-medium text-amber-800 hover:bg-amber-50 transition disabled:opacity-50"
         >
           Cancel
@@ -919,7 +1070,7 @@ const SiteSettings = () => {
         <button
           type="button"
           onClick={handleSave}
-          disabled={saving}
+          disabled={saving || resetting}
           className="rounded-lg bg-gradient-to-r from-amber-600 to-orange-600 px-6 py-2.5 text-sm font-bold text-white shadow-lg hover:from-amber-700 hover:to-orange-700 transition disabled:opacity-50"
         >
           {saving ? 'Saving…' : 'Save changes'}

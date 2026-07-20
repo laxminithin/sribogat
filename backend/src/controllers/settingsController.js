@@ -144,3 +144,11 @@ export const updateSettings = asyncHandler(async (req, res) => {
 
   res.json(serializeSettings(await fetchSettings()));
 });
+
+// Deleting the row restores defaults: null fields fall back to the frontend's
+// built-in DEFAULT_SETTINGS. Uploaded files are left on disk (still referenced
+// until reset; harmless afterwards).
+export const resetSettings = asyncHandler(async (req, res) => {
+  await db.delete(siteSettings).where(eq(siteSettings.id, SETTINGS_ID));
+  res.json(serializeSettings(null));
+});
