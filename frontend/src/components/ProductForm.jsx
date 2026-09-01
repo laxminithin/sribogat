@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Upload, X, Plus, Image as ImageIcon, Trash2, Eye, ArrowUp, ArrowDown } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { productsApi } from '../services/api';
+import { resolveImageUrl, FALLBACK_IMAGE } from '../config/config';
 
 const ProductForm = ({ initialData, onSubmit, categories = [], categoriesLoading = false }) => {
   const [formData, setFormData] = useState({
@@ -517,9 +518,15 @@ const debugHSNField = () => {
                 className="relative group bg-gray-100 rounded-lg overflow-hidden aspect-square"
               >
                 <img
-                  src={image.url}
+                  // Existing images are stored as relative "/uploads/..." paths served by
+                  // the backend, so resolve them to the backend origin for the preview.
+                  // New images are local blob: URLs and must be used as-is.
+                  src={image.isExisting ? resolveImageUrl(image.url) : image.url}
                   alt={`Preview ${index + 1}`}
                   className="w-full h-full object-cover"
+                  onError={(e) => {
+                    e.currentTarget.src = FALLBACK_IMAGE;
+                  }}
                 />
                 
                 {index === 0 && (
@@ -836,6 +843,19 @@ const debugHSNField = () => {
           {errors.unit && <p className="text-red-500 text-sm mt-1">{errors.unit}</p>}
         </div>
       </div>
+
+      {/* Auto-calculated customer price (price + GST) */}
+      {Number(formData.price) > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-gray-700">
+          Customers will see:{' '}
+          <span className="font-bold">
+            ₹{(Math.round(Number(formData.price) * (1 + (Number(formData.gst) || 0) / 100) * 100) / 100).toFixed(2)}
+          </span>
+          {Number(formData.gst) > 0
+            ? ` (₹${Number(formData.price).toFixed(2)} + ${Number(formData.gst)}% GST)`
+            : ' (no GST)'}
+        </div>
+      )}
 
       {/* Stock and Status */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">

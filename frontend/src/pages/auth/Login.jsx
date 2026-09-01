@@ -9,6 +9,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
   const { login, isAuthenticated, user } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
@@ -26,10 +27,11 @@ const Login = () => {
     e.preventDefault();
     try {
       setLoading(true);
-      
+      setError('');
+
       // The admin blocking is now handled in the AuthProvider login method
       await login(email, password, rememberMe);
-      
+
       toast.success('Login successful');
       const from = location.state?.from?.pathname || '/';
       navigate(from, { replace: true });
@@ -46,13 +48,13 @@ const Login = () => {
       }
       
       if (errorMessage.includes('Admin access is restricted')) {
-        toast.error('Admin access is restricted. Please use the admin panel.');
+        setError('Admin access is restricted. Please use the admin panel.');
         // Clear form fields for admin restriction
         setEmail('');
         setPassword('');
         setRememberMe(false);
       } else {
-        toast.error(errorMessage);
+        setError(errorMessage);
       }
     } finally {
       setLoading(false);
@@ -108,6 +110,12 @@ const Login = () => {
 
           <div className="bg-white rounded-xl shadow-lg border border-amber-200 p-6">
             <form className="space-y-6" onSubmit={handleSubmit}>
+              {error && (
+                <div className="flex items-start gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm text-red-700" role="alert">
+                  <AlertTriangle className="h-5 w-5 flex-shrink-0 text-red-500" />
+                  <span>{error}</span>
+                </div>
+              )}
               <div className="space-y-4">
                 <div>
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700">
@@ -119,8 +127,8 @@ const Login = () => {
                     type="email"
                     required
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="mt-1 appearance-none block w-full px-3 py-2 border border-amber-200 rounded-md shadow-sm placeholder-gray-600 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm hover:border-amber-300 transition-colors duration-200"
+                    onChange={(e) => { setEmail(e.target.value); setError(''); }}
+                    className={`mt-1 appearance-none block w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-600 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm transition-colors duration-200 ${error ? 'border-red-300 hover:border-red-400' : 'border-amber-200 hover:border-amber-300'}`}
                     placeholder="Enter your email"
                   />
                 </div>
@@ -134,8 +142,8 @@ const Login = () => {
                     type={showPassword ? "text" : "password"}
                     required
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="mt-1 appearance-none block w-full px-3 py-2 border border-amber-200 rounded-md shadow-sm placeholder-gray-600 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm pr-10 hover:border-amber-300 transition-colors duration-200"
+                    onChange={(e) => { setPassword(e.target.value); setError(''); }}
+                    className={`mt-1 appearance-none block w-full px-3 py-2 border rounded-md shadow-sm placeholder-gray-600 focus:outline-none focus:ring-amber-500 focus:border-amber-500 sm:text-sm pr-10 transition-colors duration-200 ${error ? 'border-red-300 hover:border-red-400' : 'border-amber-200 hover:border-amber-300'}`}
                     placeholder="Enter your password"
                   />
                   <button

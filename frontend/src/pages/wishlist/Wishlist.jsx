@@ -6,6 +6,7 @@ import { toast } from 'react-hot-toast';
 import { Heart, ShoppingCart, Loader, Trash2, Sparkles, AlertCircle, Eye } from 'lucide-react';
 import api from '../../services/api';
 import { resolveImageUrl } from '../../config/config';
+import { getPriceData } from '../../utils/pricing';
 
 const Wishlist = () => {
   const { user } = useAuth();
@@ -190,7 +191,7 @@ const Wishlist = () => {
                     )}
                     
                     <img
-                      src={resolveImageUrl(product.image || product.imageUrl || product.images?.[0], '/api/placeholder/300/200')}
+                      src={resolveImageUrl(product.image || product.imageUrl || product.images?.[0])}
                       alt={product.name}
                       className={`w-full h-48 object-contain transition-transform duration-500 p-4 ${
                         !isUnavailable 
@@ -253,8 +254,11 @@ const Wishlist = () => {
                         <div className={`text-2xl font-bold bg-gradient-to-r from-amber-700 to-orange-700 bg-clip-text text-transparent ${
                           isUnavailable ? 'opacity-50' : ''
                         }`}>
-                          ₹{product.price}
+                          ₹{getPriceData(product).totalPrice.toFixed(2)}
                         </div>
+                        {getPriceData(product).gstRate > 0 && (
+                          <span className="text-xs text-gray-500">Inclusive of GST</span>
+                        )}
                         <span className={`text-sm font-normal ${
                           isUnavailable ? 'text-gray-400' : 'text-gray-600'
                         }`}>

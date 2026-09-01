@@ -3,7 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, ChevronLeft, ChevronRight, User, LogOut, ChevronDown } from 'lucide-react';
 import { useAuth } from '../../pages/checkout/AuthProvider';
 import { toast } from 'react-hot-toast';
-import { LayoutDashboard, Box, ShoppingCart, Users, LineChart } from 'lucide-react';
+import { LayoutDashboard, Box, ShoppingCart, Users, LineChart, TicketPercent, Settings } from 'lucide-react';
 
 // Brown-themed AdminSidebar component
 const AdminSidebar = ({ isOpen, onClose, isMinimized, onToggleMinimize }) => {
@@ -20,7 +20,9 @@ const navItems = [
   { name: 'Products', icon: <Box className="w-5 h-5" />, path: '/admin/products' },
   { name: 'Orders', icon: <ShoppingCart className="w-5 h-5" />, path: '/admin/orders' },
   { name: 'Users', icon: <Users className="w-5 h-5" />, path: '/admin/customers' },
-  { name: 'Analytics', icon: <LineChart className="w-5 h-5" />, path: '/admin/analytics' }
+  { name: 'Analytics', icon: <LineChart className="w-5 h-5" />, path: '/admin/analytics' },
+  { name: 'Coupons', icon: <TicketPercent className="w-5 h-5" />, path: '/admin/coupons' },
+  { name: 'Site Settings', icon: <Settings className="w-5 h-5" />, path: '/admin/settings' }
 ];
   const handleNavigation = (path) => {
     navigate(path);

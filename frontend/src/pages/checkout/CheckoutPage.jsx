@@ -10,7 +10,8 @@ import {
 import toast from 'react-hot-toast';
 import { ordersApi, productsApi } from '../../services/api';
 import { resolveImageUrl } from '../../config/config';
-import couponApi from '../../services/couponApi'; 
+import couponApi from '../../services/couponApi';
+import { getPriceData } from '../../utils/pricing';
 
 const CheckoutPage = () => {
   const { 
@@ -25,7 +26,7 @@ const CheckoutPage = () => {
   
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [paymentMethod, setPaymentMethod] = useState('cod');
+  const [paymentMethod, setPaymentMethod] = useState('paypal');
   const [isProcessing, setIsProcessing] = useState(false);
   const [itemsLoaded, setItemsLoaded] = useState(false);
   const [useRegisteredAddress, setUseRegisteredAddress] = useState(true);
@@ -53,83 +54,6 @@ const CheckoutPage = () => {
     pincode: '',
     phone: ''
   });
-
-  // ✅ FIXED: Function to get price data from database with proper GST calculation
-  const getPriceData = (product) => {
-    console.log('🔍 Analyzing product pricing:', {
-      productId: product._id || product.id,
-      name: product.name,
-      price: product.price,
-      gstRate: product.gstRate,
-      gst: product.gst,
-      totalPrice: product.totalPrice,
-      gstAmount: product.gstAmount
-    });
-
-    // Method 1: If database has pre-calculated total price with GST
-    if (product.totalPrice !== undefined && product.totalPrice !== null && product.totalPrice > 0) {
-      const basePrice = parseFloat(product.price) || 0;
-      const totalPrice = parseFloat(product.totalPrice);
-      const gstRate = product.gstRate || product.gst || 18;
-      const calculatedGstAmount = totalPrice - basePrice;
-      
-      console.log('✅ Using database totalPrice method:', {
-        basePrice,
-        totalPrice,
-        gstRate,
-        calculatedGstAmount
-      });
-      
-      return {
-        basePrice,
-        gstRate,
-        gstAmount: calculatedGstAmount > 0 ? calculatedGstAmount : (basePrice * gstRate) / 100,
-        totalPrice
-      };
-    }
-    
-    // Method 2: If database has separate GST amount stored
-    if (product.gstAmount !== undefined && product.gstAmount !== null && product.gstAmount > 0) {
-      const basePrice = parseFloat(product.price) || 0;
-      const gstAmount = parseFloat(product.gstAmount);
-      const gstRate = product.gstRate || product.gst || 18;
-      const totalPrice = basePrice + gstAmount;
-      
-      console.log('✅ Using database gstAmount method:', {
-        basePrice,
-        gstAmount,
-        gstRate,
-        totalPrice
-      });
-      
-      return {
-        basePrice,
-        gstRate,
-        gstAmount,
-        totalPrice
-      };
-    }
-    
-    // Method 3: Calculate GST from base price and rate
-    const basePrice = parseFloat(product.price) || 0;
-    const gstRate = product.gstRate || product.gst || 18; // ✅ FIXED: Removed JSX syntax
-    const gstAmount = (basePrice * gstRate) / 100;
-    const totalPrice = basePrice + gstAmount;
-    
-    console.log('⚠️ Calculating GST (database should have this pre-calculated):', {
-      basePrice,
-      gstRate,
-      gstAmount,
-      totalPrice
-    });
-    
-    return {
-      basePrice,
-      gstRate,
-      gstAmount,
-      totalPrice
-    };
-  };
 
   // ✅ Fetch product details including database pricing for all cart items
   const fetchProductDetails = async () => {
@@ -161,7 +85,7 @@ const CheckoutPage = () => {
             id: item._id || item.id,
             ...item,
             price: item.price || 0,
-            gstRate: 18,
+            gstRate: 0,
             gstAmount: 0,
             totalPrice: item.price || 0
           };
@@ -449,6 +373,15 @@ const CheckoutPage = () => {
         throw new Error('Order was not created successfully');
       }
 
+      // TODO(teamlead): prepaid PayPal flow goes here. The order above is created
+      // as paymentStatus:'pending'. Before clearing the cart / navigating, drive:
+      //   const { paypalOrderId } = await ordersApi.createPaypalOrder({ orderId });
+      //   ...render PayPal Buttons, on approval:
+      //   await ordersApi.capturePaypalOrder({ orderId, paypalOrderId });
+      // Only clear the cart + show success once capture returns completed.
+      // (Backend endpoints are scaffolded in paypalController.js and return 501
+      //  until implemented — so end-to-end checkout stays blocked by design.)
+
       if (appliedCoupon && frontendTotals.discount > 0) {
         try {
           await couponApi.updateCouponUsage(appliedCoupon._id, {
@@ -661,9 +594,9 @@ const CheckoutPage = () => {
                 {cartState.items.map((item, index) => {
                   const productId = item._id || item.id;
                   const product = productDetails.get(productId);
-                  const priceData = product ? getPriceData(product) : { 
+                  const priceData = product ? getPriceData(product) : {
                     basePrice: item.price || 0,
-                    gstRate: 18,
+                    gstRate: 0,
                     gstAmount: 0,
                     totalPrice: item.price || 0
                   };
@@ -680,8 +613,7 @@ const CheckoutPage = () => {
                         <div className="relative overflow-hidden rounded-lg sm:rounded-xl w-full sm:w-auto">
                           <img
                             src={resolveImageUrl(
-                              item.image || item.imageUrl || product?.image || product?.imageUrl || product?.images?.[0],
-                              '/api/placeholder/300/200'
+                              item.image || item.imageUrl || product?.image || product?.imageUrl || product?.images?.[0]
                             )}
                             alt={item.name}
                             className="w-full sm:w-20 md:w-24 h-48 sm:h-20 md:h-24 object-cover transition-transform duration-300 group-hover:scale-110"
@@ -909,7 +841,7 @@ const CheckoutPage = () => {
                 <>
                   <div className="space-y-3 sm:space-y-4 mb-6 sm:mb-8">
                     <div className="flex justify-between text-gray-600 text-base sm:text-lg">
-                      <span>Subtotal ({getTotalItems()} items)</span>
+                      <span>Subtotal ({getTotalItems()} items) <span className="text-xs text-gray-500">(incl. GST)</span></span>
                       <span className="font-semibold">₹{totals.subtotal.toFixed(2)}</span>
                     </div>
                     
@@ -1092,19 +1024,23 @@ const CheckoutPage = () => {
                   Payment Method
                 </h3>
                 <div className="space-y-3">
+                  {/* Prepaid only. COD removed — PayPal is the sole method.
+                      TODO(teamlead): replace this radio with the PayPal Buttons
+                      SDK (<PayPalButtons/>) that calls ordersApi.createPaypalOrder
+                      then ordersApi.capturePaypalOrder on approval. */}
                   <label className="group flex items-center space-x-3 p-3 sm:p-4 rounded-lg sm:rounded-xl border-2 border-amber-200 hover:border-amber-300 cursor-pointer transition-all duration-200 hover:bg-amber-50/50">
                     <input
                       type="radio"
                       name="payment"
-                      value="cod"
-                      checked={paymentMethod === 'cod'}
+                      value="paypal"
+                      checked={paymentMethod === 'paypal'}
                       onChange={(e) => setPaymentMethod(e.target.value)}
                       className="text-amber-600 focus:ring-amber-500 w-4 h-4 sm:w-5 sm:h-5"
                     />
                     <div className="flex items-center">
                       <CreditCard className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 mr-2" />
                       <span className="font-medium text-gray-700 group-hover:text-amber-700 text-sm sm:text-base">
-                        Cash on Delivery
+                        PayPal
                       </span>
                     </div>
                   </label>

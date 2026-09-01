@@ -11,7 +11,8 @@ import { useCart } from "../checkout/CartContext";
 import { useAuth } from '../checkout/AuthProvider';
 import { toast } from 'react-hot-toast';
 import { usersApi, productsApi } from '../../services/api';
-import { resolveImageUrl } from '../../config/config';
+import config, { resolveImageUrl, FALLBACK_IMAGE } from '../../config/config';
+import { getPriceData } from '../../utils/pricing';
 import { Link } from 'react-router-dom';
 
 // ✅ FIXED: Separate ReviewForm component to prevent re-rendering issues
@@ -205,36 +206,10 @@ const ProductDetailPage = () => {
   const [showReviewForm, setShowReviewForm] = useState(false);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
 
-  // Function to get price data from database (no calculation needed)
-  const getPriceData = useCallback((product) => {
-    // Check if the product has pre-calculated total price from database
-    if (product.totalPrice !== undefined && product.totalPrice !== null) {
-      return {
-        basePrice: product.price || 0,
-        gstRate: product.gst || 18,
-        gstAmount: product.gstAmount || 0,
-        totalPrice: product.totalPrice
-      };
-    }
-    
-    // Fallback: If database doesn't have totalPrice, calculate it
-    const basePrice = parseFloat(product.price) || 0;
-    const gstRate = product.gst || 18;
-    const gstAmount = (basePrice * gstRate) / 100;
-    const totalPrice = basePrice + gstAmount;
-    
-    return {
-      basePrice,
-      gstRate,
-      gstAmount,
-      totalPrice
-    };
-  }, []);
-
   // Image handling functions
   const getProductImage = useCallback((imagePath) => {
     if (!imagePath) {
-      return '/api/placeholder/500/500';
+      return FALLBACK_IMAGE;
     }
 
     // If it's already a full URL, return as is
@@ -247,9 +222,8 @@ const ProductDetailPage = () => {
       return resolveImageUrl(imagePath);
     }
     
-    // If it's just a filename, put it in product folder
-    const filename = imagePath.split('/').pop();
-    return resolveImageUrl(`/uploads/product/${filename}`);
+    // Bare filename: resolveImageUrl maps it into /uploads/products/
+    return resolveImageUrl(imagePath);
   }, []);
 
   // Enhanced getProductImages function
@@ -265,7 +239,7 @@ const ProductDetailPage = () => {
     }
     
     // Default placeholder
-    return ['/api/placeholder/500/500'];
+    return [FALLBACK_IMAGE];
   }, [product, getProductImage]);
 
   // Enhanced getRelatedProductImage function
@@ -278,7 +252,7 @@ const ProductDetailPage = () => {
       return getProductImage(relatedProduct.image);
     }
     
-    return '/api/placeholder/300/200';
+    return FALLBACK_IMAGE;
   }, [getProductImage]);
 
   // Real-time cart sync effect
@@ -358,7 +332,7 @@ const ProductDetailPage = () => {
     try {
       setReviewsLoading(true);
       
-      const reviewsResponse = await fetch(`${import.meta.env.VITE_API_URL}/reviews/verified/product/${id}`);
+      const reviewsResponse = await fetch(`${config.API_URL}/reviews/verified/product/${id}`);
       const reviewsData = await reviewsResponse.json();
       
       if (reviewsResponse.ok && reviewsData.success) {
@@ -411,7 +385,7 @@ const ProductDetailPage = () => {
     try {
       console.log('Checking if user can review product:', id);
       
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/reviews/can-review/${id}`, {
+      const response = await fetch(`${config.API_URL}/reviews/can-review/${id}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('kissanbandi_token') || sessionStorage.getItem('kissanbandi_token')}`,
@@ -493,7 +467,7 @@ const ProductDetailPage = () => {
         images: formData.images.length
       });
 
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/reviews`, {
+      const response = await fetch(`${config.API_URL}/reviews`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('kissanbandi_token') || sessionStorage.getItem('kissanbandi_token')}`
@@ -1038,7 +1012,7 @@ const ProductDetailPage = () => {
                 className="w-full h-96 object-cover transition-transform duration-500 group-hover:scale-110"
                 onError={(e) => {
                   console.error('❌ Product image failed to load:', e.target.src);
-                  e.target.src = '/api/placeholder/500/500';
+                  e.target.src = FALLBACK_IMAGE;
                 }}
                 onLoad={() => {
                   console.log('✅ Product image loaded successfully:', images[selectedImage]);
@@ -1093,7 +1067,7 @@ const ProductDetailPage = () => {
                       className="w-full h-full object-cover"
                       onError={(e) => {
                         console.error('❌ Thumbnail failed to load:', e.target.src);
-                        e.target.src = '/api/placeholder/100/100';
+                        e.target.src = FALLBACK_IMAGE;
                       }}
                     />
                   </button>
@@ -1291,7 +1265,7 @@ const ProductDetailPage = () => {
                       className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
                       onError={(e) => {
                         console.error('❌ Related product image failed:', e.target.src);
-                        e.target.src = '/api/placeholder/300/200';
+                        e.target.src = FALLBACK_IMAGE;
                       }}
                     />
                     <div className="p-4">

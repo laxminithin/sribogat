@@ -12,7 +12,11 @@ import {
   Heart
 } from 'lucide-react';
 
+import { useSiteSettings } from '../contexts/SiteSettingsContext';
+
 const Footer = () => {
+  const { settings } = useSiteSettings();
+
   return (
     <footer style={{ backgroundColor: '#823000' }}>
  
@@ -36,8 +40,7 @@ const Footer = () => {
               </h2>
             </div>
             <p className="text-white/80 mb-6 max-w-md leading-relaxed">
-              Preserving the authentic taste of India through premium spices and traditional coffee. 
-              From heritage farms to your kitchen, delivering excellence since generations.
+              {settings.footerDescription}
             </p>
             
            
@@ -129,14 +132,14 @@ const Footer = () => {
                 <Phone className="w-5 h-5 mt-0.5" style={{ color: '#f59b52' }} />
                 <div>
                   <div className="font-semibold text-white">Call Us</div>
-                  <span className="text-white/70 text-sm">+91 7795451890</span>
+                  <span className="text-white/70 text-sm">{settings.contactPhone}</span>
                 </div>
               </li>
               <li className="flex items-start space-x-3">
                 <Mail className="w-5 h-5 mt-0.5" style={{ color: '#f59b52' }} />
                 <div>
                   <div className="font-semibold text-white">Email Us</div>
-                  <span className="text-white/70 text-sm">support@sribogat.com</span>
+                  <span className="text-white/70 text-sm">{settings.contactEmail}</span>
                 </div>
               </li>
             </ul>
@@ -156,7 +159,7 @@ const Footer = () => {
           <div className="flex flex-col lg:flex-row justify-between items-center space-y-3 lg:space-y-0">
             <div className="flex items-center text-sm">
               <Heart className="w-4 h-4 mr-2" style={{ color: '#f59b52' }} />
-              <span className="text-white/80">© 2024 BOGAT. Crafted with tradition for authentic flavors.</span>
+              <span className="text-white/80">{settings.footerCopyright}</span>
             </div>
             <div className="flex flex-wrap items-center justify-center gap-4">
               <Link 

@@ -74,10 +74,11 @@ const Customers = () => {
     loadCustomers(); // Refresh the customers list after update
   };
 
-  const filteredCustomers = customers.filter(customer => 
-    customer.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    customer.phone.includes(searchQuery)
+  const query = searchQuery.toLowerCase();
+  const filteredCustomers = customers.filter(customer =>
+    (customer.name?.toLowerCase() || '').includes(query) ||
+    (customer.email?.toLowerCase() || '').includes(query) ||
+    String(customer.phone ?? '').includes(searchQuery)
   );
 
   if (loading) {
@@ -298,7 +299,7 @@ const Customers = () => {
                             <div className="h-64">
                               <ResponsiveContainer width="100%" height="100%">
                                 <BarChart
-                                  data={Object.entries(customerAnalytics.monthlySpending).map(([month, amount]) => ({
+                                  data={Object.entries(customerAnalytics.monthlySpending ?? {}).map(([month, amount]) => ({
                                     month,
                                     amount
                                   }))}
@@ -324,7 +325,7 @@ const Customers = () => {
                           <div className="bg-white p-6 rounded-xl shadow-md border border-amber-100">
                             <h3 className="text-lg font-bold text-amber-800 mb-4">Frequently Bought Products</h3>
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                              {customerAnalytics.topProducts.map((product) => (
+                              {(customerAnalytics.topProducts ?? []).map((product) => (
                                 <div key={product._id} className="flex items-center space-x-3 p-4 border border-amber-200 rounded-xl hover:shadow-md transition-all duration-200 hover:bg-amber-50">
                                   <img
                                     src={product.image}

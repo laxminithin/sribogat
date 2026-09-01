@@ -8,6 +8,7 @@ import { createId } from '../utils/ids.js';
 import { serializeProduct } from '../utils/serializers.js';
 import { slugify } from '../utils/slug.js';
 import { toArray, toBoolean } from '../utils/requestParsing.js';
+import { deleteProductImages } from '../utils/uploads.js';
 
 const productStatusSchema = z.enum(['draft', 'active', 'inactive']);
 
@@ -351,7 +352,11 @@ export const listProducts = asyncHandler(async (req, res) => {
   const subcategoryFilter = req.query.subcategory?.toString().trim().toLowerCase();
   const featuredOnly = req.query.featured === 'true';
 
+  // Only admins may see draft/inactive products; everyone else gets active only.
+  const isAdmin = req.auth?.role === 'admin';
+
   const filtered = rows.filter((row) => {
+    if (!isAdmin && row.status !== 'active') return false;
     if (featuredOnly && !row.isFeatured) return false;
     if (categoryFilter && row.category?.toLowerCase() !== categoryFilter) return false;
     if (subcategoryFilter && row.subcategory?.toLowerCase() !== subcategoryFilter) return false;
@@ -370,7 +375,9 @@ export const getProductById = asyncHandler(async (req, res) => {
     where: eq(products.id, req.params.id),
   });
 
-  if (!product) {
+  // Draft/inactive products are only visible to admins — anyone else gets a 404.
+  const isAdmin = req.auth?.role === 'admin';
+  if (!product || (!isAdmin && product.status !== 'active')) {
     return res.status(404).json({ error: 'Product not found' });
   }
 
@@ -468,6 +475,12 @@ export const updateProduct = asyncHandler(async (req, res) => {
     })
     .where(eq(products.id, req.params.id));
 
+  // Remove the image files the admin dropped from the product so replaced/deleted
+  // pictures don't linger on disk. New uploads and kept images stay in payload.imageUrls.
+  const keptImages = new Set(payload.imageUrls);
+  const removedImages = toArray(existing.imageUrls).filter((url) => !keptImages.has(url));
+  await deleteProductImages(removedImages);
+
   const updated = await getProductByIdRecord(req.params.id);
 
   const [serialized] = await attachCategoryMetadata([{ ...updated, categoryName: category?.name ?? '' }]);
@@ -538,6 +551,11 @@ export const deleteProduct = asyncHandler(async (req, res) => {
   }
 
   await db.delete(products).where(eq(products.id, req.params.id));
+
+  // Clean up every image file this product owned so deleting a product doesn't
+  // leave orphaned uploads behind.
+  const ownedImages = [...new Set([...toArray(existing.imageUrls), existing.imageUrl].filter(Boolean))];
+  await deleteProductImages(ownedImages);
 
   res.json({ success: true });
 });

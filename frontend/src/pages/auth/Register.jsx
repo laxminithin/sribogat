@@ -165,16 +165,15 @@ const Register = () => {
       console.log('✅ Registration successful!', response.status);
       console.log('📦 Response data:', response.data);
       
-      // Handle successful registration
+      // Handle successful registration. The account is created and usable
+      // immediately (no email verification exists), so send the user to log in.
+      // We intentionally don't stash the returned token here: this flow redirects
+      // to /login rather than logging in via AuthContext, and a token left in
+      // localStorage without updating AuthContext would ride along on API calls
+      // while the UI still treats the user as logged out.
       setRegistered(true);
-      toast.success('Registration successful! Please check your email for verification.');
-      
-      // Store token and user data if provided
-      if (response.data && response.data.token) {
-        localStorage.setItem('kissanbandi_token', response.data.token);
-        localStorage.setItem('kissanbandi_user', JSON.stringify(response.data.user));
-      }
-      
+      toast.success('Registration successful! Please log in.');
+
       // Redirect after 3 seconds
       setTimeout(() => {
         navigate('/login');
@@ -191,54 +190,22 @@ const Register = () => {
         url: err.config?.url
       });
       
-      // Check if this is actually a successful response (201) treated as error
-      if (err.response && err.response.status === 201) {
-        console.log('✅ 201 response - treating as success');
-        
-        setRegistered(true);
-        toast.success('Registration successful! Please check your email for verification.');
-        
-        if (err.response.data && err.response.data.token) {
-          localStorage.setItem('kissanbandi_token', err.response.data.token);
-          localStorage.setItem('kissanbandi_user', JSON.stringify(err.response.data.user));
-        }
-        
-        setTimeout(() => {
-          navigate('/login');
-        }, 2000);
-        return;
-      }
-      
-      // Handle actual errors
-      if (err.response?.status === 400 && err.response?.data?.error?.includes('already registered')) {
-        console.log('🔄 User already exists');
+      // Duplicate email (backend returns 409, older builds 400) — guide to login.
+      const status = err.response?.status;
+      const backendError = err.response?.data?.error ?? '';
+      if ((status === 409 || status === 400) && /already registered|already exists/i.test(backendError)) {
         toast.error('Email already registered. Please login or use a different email.');
         setTimeout(() => {
           navigate('/login');
         }, 2000);
       } else {
-        // Log the exact error that's causing the toast
-        const errorMessage = err.response?.data?.error || 
-                           err.response?.data?.message || 
-                           err.message || 
-                           'Registration failed. Please try again.';
-        
-        console.log('💥 Showing error toast:', errorMessage);
-        console.log('🔍 This is the error message that will be displayed to user');
-        
-        // Only show toast if it's not about verification/undefined (those might be false positives)
-        if (!errorMessage.includes('verification') && 
-            !errorMessage.includes('undefined') &&
-            !errorMessage.includes('Cannot read properties')) {
-          toast.error(errorMessage);
-        } else {
-          console.log('🚫 Suppressing verification-related error, might be false positive');
-          // Check if user was actually created by trying to redirect
-          toast.success('Registration may have completed. Please try logging in.');
-          setTimeout(() => {
-            navigate('/login');
-          }, 2000);
-        }
+        // Show the real reason. Don't mask genuine failures as success.
+        const errorMessage =
+          backendError ||
+          err.response?.data?.message ||
+          err.message ||
+          'Registration failed. Please try again.';
+        toast.error(errorMessage);
       }
     } finally {
       setLoading(false);

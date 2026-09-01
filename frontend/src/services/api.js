@@ -84,12 +84,16 @@ api.interceptors.response.use(
 
     // Network or CORS error
     if (!error.response) {
-      toast.error('Network error. Please check your connection.');
+      // id dedupes simultaneous failures into a single toast
+      toast.error('Network error. Please check your connection.', { id: 'network-error' });
       return Promise.reject(error);
     }
 
-    // Handle 401 Unauthorized
-    if (error.response.status === 401) {
+    // Handle 401 Unauthorized — but NOT for login requests. A wrong password
+    // legitimately returns 401; the login page owns that error UX (shows a
+    // toast). Redirecting here would reload the page and swallow that message.
+    const isLoginRequest = /\/(admin\/)?login$/.test(error.config?.url || '');
+    if (error.response.status === 401 && !isLoginRequest) {
       const hadAdminSession =
         Boolean(localStorage.getItem('adminToken')) || Boolean(sessionStorage.getItem('adminToken'));
 
@@ -106,17 +110,13 @@ api.interceptors.response.use(
       return Promise.reject(error);
     }
 
-    // FIXED: Don't show automatic toast for registration endpoints
-    // Let the component handle success/error messaging
-    const isRegistrationEndpoint = error.config?.url?.includes('/users/register');
-    const isLoginEndpoint = error.config?.url?.includes('/auth/login') || error.config?.url?.includes('/users/login');
-    
-    // Don't show automatic toasts for auth endpoints - let components handle them
-    if (!isRegistrationEndpoint && !isLoginEndpoint) {
-      const message = error.response?.data?.error || error.message || 'An error occurred';
-      toast.error(message);
-    }
-
+    // Components own their own error messaging in their catch blocks (e.g.
+    // "Failed to load wishlist"). A blanket toast here fired a SECOND, differently
+    // worded toast for the same failure — the reported "popping twice" bug. The
+    // codebase already suppressed it per-endpoint for auth; generalize that to all
+    // routes so components are the single owner of error UX.
+    // ponytail: no interceptor error toast; components handle their catches. If a
+    // route needs a generic fallback toast, add it in that route's catch.
     return Promise.reject(error);
   }
 );
@@ -908,6 +908,19 @@ export const ordersApi = {
   // Verify Razorpay payment
   verifyPayment: async (data) => {
     const response = await api.post('/orders/razorpay/verify', data);
+    return response.data;
+  },
+
+  // PayPal (scaffold) — teamlead to wire with the PayPal Buttons SDK.
+  // createPaypalOrder({ orderId }) -> { paypalOrderId } for the SDK to approve.
+  createPaypalOrder: async (data) => {
+    const response = await api.post('/orders/paypal/create', data);
+    return response.data;
+  },
+
+  // capturePaypalOrder({ orderId, paypalOrderId }) after buyer approval.
+  capturePaypalOrder: async (data) => {
+    const response = await api.post('/orders/paypal/capture', data);
     return response.data;
   },
 

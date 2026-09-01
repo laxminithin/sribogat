@@ -1,4 +1,4 @@
-import { LayoutDashboard, Package, ShoppingCart, Users, BarChart2, Coupon, LogOut } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingCart, Users, BarChart2, TicketPercent, LogOut } from 'lucide-react';
 
 const navigation = [
   { name: 'Dashboard', href: '/admin', icon: LayoutDashboard },
@@ -6,4 +6,5 @@ const navigation = [
   { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
   { name: 'Customers', href: '/admin/customers', icon: Users },
   { name: 'Analytics', href: '/admin/analytics', icon: BarChart2 },
+  { name: 'Coupons', href: '/admin/coupons', icon: TicketPercent },
 ];

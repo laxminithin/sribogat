@@ -4,6 +4,7 @@ import { Eye, Heart, ShoppingCart, Sparkles, Star } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { productsApi, usersApi } from '../../services/api';
 import { resolveImageUrl } from '../../config/config';
+import { getPriceData } from '../../utils/pricing';
 import { useCart } from '../checkout/CartContext';
 import { useAuth } from '../checkout/AuthProvider';
 
@@ -72,7 +73,7 @@ const ProductCatalog = ({ showAll = false }) => {
 
   const getProductImage = (product) => {
     const image = product?.images?.[0] || product?.image || product?.imageUrl;
-    return resolveImageUrl(image, 'https://via.placeholder.com/600x600/f5f5f5/9ca3af?text=Sri+Bogat');
+    return resolveImageUrl(image);
   };
 
   const handleOpenProduct = (productId) => {
@@ -251,8 +252,8 @@ const ProductCatalog = ({ showAll = false }) => {
 
                     <div className="mt-4 flex items-end justify-between gap-4">
                       <div>
-                        <div className="text-2xl font-bold text-amber-800">₹{Number(product.price || 0).toFixed(2)}</div>
-                        <div className="text-xs text-gray-500">/{product.unit || 'unit'}</div>
+                        <div className="text-2xl font-bold text-amber-800">₹{getPriceData(product).totalPrice.toFixed(2)}</div>
+                        <div className="text-xs text-gray-500">/{product.unit || 'unit'}{getPriceData(product).gstRate > 0 ? ' · Inclusive of GST' : ''}</div>
                       </div>
                       {inCartQty > 0 && (
                         <div className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">

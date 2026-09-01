@@ -1,5 +1,6 @@
 // BlogDetail.jsx
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
 import config from '../config/config';
 import { useParams, useNavigate } from 'react-router-dom';
 import { 
@@ -191,7 +192,7 @@ const BlogDetail = () => {
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(window.location.href);
-    alert('Link copied to clipboard!');
+    toast.success('Link copied to clipboard!');
     setShowShareMenu(false);
   };
 

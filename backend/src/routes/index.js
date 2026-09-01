@@ -3,9 +3,11 @@ import analyticsRoutes from './analyticsRoutes.js';
 import contentRoutes from './contentRoutes.js';
 import authRoutes from './authRoutes.js';
 import categoryRoutes from './categoryRoutes.js';
+import couponRoutes from './couponRoutes.js';
 import healthRoutes from './healthRoutes.js';
 import orderRoutes from './orderRoutes.js';
 import productRoutes from './productRoutes.js';
+import settingsRoutes from './settingsRoutes.js';
 import userRoutes from './userRoutes.js';
 
 const router = Router();
@@ -17,6 +19,8 @@ router.use('/api/users', userRoutes);
 router.use('/api/categories', categoryRoutes);
 router.use('/api/products', productRoutes);
 router.use('/api/orders', orderRoutes);
+router.use('/api/coupons', couponRoutes);
+router.use('/api/settings', settingsRoutes);
 router.use('/api', contentRoutes);
 
 export default router;

@@ -1,12 +1,15 @@
 import React, { useState, useEffect } from "react";
-import { Menu, X, ShoppingCart, User, LogOut, Home, Package, Heart, BookOpen } from "lucide-react";
+import { Menu, X, ShoppingCart, User, LogOut, Home, Package, Heart, BookOpen, Crown } from "lucide-react";
 import { useCart } from "../pages/checkout/CartContext";
 import { useAuth } from "../pages/checkout/AuthProvider";
 import { Link, useNavigate, useLocation } from "react-router-dom";
 import logoImage from '../assets/Sri_Bogat_logo.png';
+import { useSiteSettings } from '../contexts/SiteSettingsContext';
+import { resolveImageUrl } from '../config/config';
 
 const Navbar = () => {
   const { state } = useCart();
+  const { settings } = useSiteSettings();
   const { user, isAuthenticated, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
@@ -127,17 +130,22 @@ const Navbar = () => {
                 <div className="flex items-center space-x-2 md:space-x-3">
                   {/* Logo Image - Made bigger */}
                   <img 
-                     src={logoImage}
+                     src={settings.logoUrl ? resolveImageUrl(settings.logoUrl) : logoImage}
                     alt="Bogat Logo" 
                     className={`transition-all duration-300 object-contain ${
                       isScrolled ? 'h-10 w-10 md:h-12 md:w-12' : 'h-12 w-12 md:h-16 md:w-16'
                     }`}
                   />
                   {/* Logo Text - Made smaller and removed brown color */}
-                  <div className={`font-bold tracking-wider transition-all duration-300 text-transparent bg-clip-text bg-gradient-to-r from-[#4B2E2B] to-[#dd9941] ${
-                    isScrolled ? 'text-lg md:text-xl' : 'text-xl md:text-2xl'
-                  }`}>
-                    SRI BOGAT
+                  <div
+                    className={`font-bold tracking-wider transition-all duration-300 text-transparent bg-clip-text ${
+                      isScrolled ? 'text-lg md:text-xl' : 'text-xl md:text-2xl'
+                    }`}
+                    style={{
+                      backgroundImage: `linear-gradient(to right, ${settings.brandColorStart}, ${settings.brandColorEnd})`,
+                    }}
+                  >
+                    {settings.brandName}
                   </div>
                 </div>
               </Link>
@@ -183,6 +191,12 @@ const Navbar = () => {
                       <User className="w-4 h-4 md:w-5 md:h-5 text-amber-800" />
                     </div>
                     <span className="hidden lg:block font-medium text-sm">{user.name}</span>
+                    {user.isPremium && (
+                      <span className="hidden lg:inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold text-white bg-gradient-to-r from-amber-400 to-orange-500 shadow-sm">
+                        <Crown className="w-3 h-3" />
+                        Premium
+                      </span>
+                    )}
                   </button>
 
                   {showProfileMenu && (

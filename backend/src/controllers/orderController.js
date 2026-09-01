@@ -1,8 +1,9 @@
-import { and, asc, desc, eq, inArray } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { db } from '../db/client.js';
 import { orderItems, orders, products, users } from '../db/schema.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { CouponError, recordCouponUsage, validateCouponForCart } from '../utils/coupons.js';
 import { createId } from '../utils/ids.js';
 import { serializeOrder, serializeProduct } from '../utils/serializers.js';
 
@@ -25,8 +26,6 @@ const createOrderSchema = z.object({
   shipping: z.coerce.number().nonnegative().optional(),
   couponCode: z.string().nullable().optional(),
   paymentMethod: z.string().optional(),
-  paymentStatus: z.enum(['pending', 'initiated', 'completed', 'failed', 'refunded']).optional(),
-  status: z.enum(['pending', 'processing', 'shipped', 'delivered', 'cancelled']).optional(),
   shippingAddress: z.object({
     address: z.string().min(1),
     city: z.string().min(1),
@@ -47,6 +46,23 @@ const adminNoteSchema = z.object({
 function toMoney(value) {
   return Number(value ?? 0).toFixed(2);
 }
+
+function round2(value) {
+  return Math.round(Number(value ?? 0) * 100) / 100;
+}
+
+// Release stock reserved for an order that ended up not being created.
+async function restoreStock(rows) {
+  for (const row of rows) {
+    await db
+      .update(products)
+      .set({ stock: sql`${products.stock} + ${row.quantity}` })
+      .where(eq(products.id, row.productId));
+  }
+}
+
+const FREE_SHIPPING_THRESHOLD = 500;
+const SHIPPING_CHARGE = 50;
 
 function buildOrderNumber(sequence) {
   return `ORD-${String(sequence).padStart(6, '0')}`;
@@ -134,31 +150,10 @@ export const createOrder = asyncHandler(async (req, res) => {
     where: eq(users.id, req.auth.userId),
   });
 
-  const totalAmount = input.totalAmount ?? input.total ?? input.discountedSubtotal ?? input.subtotal;
-  const shippingCharge = input.shippingCharge ?? input.shipping ?? 0;
-
-  await db
-    .insert(orders)
-    .values({
-      id: orderId,
-      orderNumber,
-      userId: req.auth.userId,
-      subtotal: toMoney(input.subtotal),
-      discountedSubtotal: toMoney(input.discountedSubtotal ?? input.subtotal),
-      discount: toMoney(input.discount ?? 0),
-      totalAmount: toMoney(totalAmount),
-      shippingCharge: toMoney(shippingCharge),
-      couponCode: input.couponCode ?? null,
-      paymentMethod: input.paymentMethod ?? 'cod',
-      paymentStatus: input.paymentStatus ?? 'pending',
-      status: input.status ?? 'pending',
-      shippingName: user?.name || 'Customer',
-      shippingPhone: input.shippingAddress.phone ?? user?.phone ?? null,
-      shippingAddress: input.shippingAddress.address,
-      shippingCity: input.shippingAddress.city,
-      shippingState: input.shippingAddress.state,
-      shippingPincode: input.shippingAddress.pincode,
-    });
+  // Price everything server-side from the DB so GST is applied exactly once,
+  // regardless of what the client sends.
+  const itemRows = [];
+  let subtotal = 0;
 
   for (const item of input.items) {
     const productId = item.productId ?? item.product;
@@ -172,21 +167,116 @@ export const createOrder = asyncHandler(async (req, res) => {
 
     const basePrice = Number(product.price);
     const gstRate = Number(product.gstRate ?? 0);
-    const gstAmount = (basePrice * gstRate) / 100;
+    const gstAmount = round2((basePrice * gstRate) / 100);
+    const unitPrice = round2(basePrice + gstAmount);
+    const lineTotal = round2(unitPrice * item.quantity);
+    subtotal = round2(subtotal + lineTotal);
 
-    await db.insert(orderItems).values({
+    itemRows.push({
       id: createId(),
       orderId,
       productId,
       name: item.name ?? product.name,
       quantity: item.quantity,
       basePrice: toMoney(basePrice),
-      unitPrice: toMoney(item.price),
+      unitPrice: toMoney(unitPrice),
       gstRate: toMoney(gstRate),
       gstAmount: toMoney(gstAmount),
       hsn: product.hsn,
-      lineTotal: toMoney(item.price * item.quantity),
+      lineTotal: toMoney(lineTotal),
     });
+  }
+
+  // The discount comes only from a server-validated coupon — never from the
+  // client, which could otherwise name any amount.
+  let discount = 0;
+  let appliedCoupon = null;
+
+  if (input.couponCode) {
+    try {
+      const result = await validateCouponForCart({
+        code: input.couponCode,
+        userId: req.auth.userId,
+        cartTotal: subtotal,
+        items: itemRows.map((row) => ({ productId: row.productId, lineTotal: Number(row.lineTotal) })),
+      });
+      appliedCoupon = result.coupon;
+      discount = result.discount;
+    } catch (error) {
+      if (error instanceof CouponError) {
+        return res.status(error.status).json({ error: error.message });
+      }
+      throw error;
+    }
+  }
+
+  const discountedSubtotal = round2(subtotal - discount);
+  const shippingCharge = discountedSubtotal >= FREE_SHIPPING_THRESHOLD ? 0 : SHIPPING_CHARGE;
+  const totalAmount = round2(discountedSubtotal + shippingCharge);
+
+  // Reserve stock atomically before creating the order. The `stock >= quantity`
+  // guard is the same conditional-update pattern recordCouponUsage uses — it
+  // stops two concurrent orders from overselling the same unit. Bail (and release
+  // whatever was already taken) the moment one item can't be satisfied.
+  const reserved = [];
+  for (const row of itemRows) {
+    const [result] = await db
+      .update(products)
+      .set({ stock: sql`${products.stock} - ${row.quantity}` })
+      .where(and(eq(products.id, row.productId), gte(products.stock, row.quantity)));
+    if (!result.affectedRows) {
+      await restoreStock(reserved);
+      return res.status(400).json({ error: `Insufficient stock for ${row.name}` });
+    }
+    reserved.push(row);
+  }
+
+  try {
+    await db.insert(orders).values({
+      id: orderId,
+      orderNumber,
+      userId: req.auth.userId,
+      subtotal: toMoney(subtotal),
+      discountedSubtotal: toMoney(discountedSubtotal),
+      discount: toMoney(discount),
+      totalAmount: toMoney(totalAmount),
+      shippingCharge: toMoney(shippingCharge),
+      couponCode: appliedCoupon?.code ?? null,
+      paymentMethod: input.paymentMethod ?? 'paypal',
+      // A new order is always unpaid and pending — the customer can't set these.
+      // Payment status advances via the payment flow; order status via admin.
+      paymentStatus: 'pending',
+      status: 'pending',
+      shippingName: user?.name || 'Customer',
+      shippingPhone: input.shippingAddress.phone ?? user?.phone ?? null,
+      shippingAddress: input.shippingAddress.address,
+      shippingCity: input.shippingAddress.city,
+      shippingState: input.shippingAddress.state,
+      shippingPincode: input.shippingAddress.pincode,
+    });
+
+    await db.insert(orderItems).values(itemRows);
+
+    if (appliedCoupon) {
+      await recordCouponUsage({
+        coupon: appliedCoupon,
+        userId: req.auth.userId,
+        orderId,
+        orderValue: totalAmount,
+        discount,
+      });
+    }
+  } catch (error) {
+    // Anything after reservation failed (a concurrent order exhausted the coupon,
+    // or an insert hiccuped) — undo the order (cascade removes its items) and
+    // release the reserved stock so nothing is silently swallowed. Deleting a
+    // never-inserted order id is a harmless no-op.
+    await db.delete(orders).where(eq(orders.id, orderId));
+    await restoreStock(reserved);
+    if (error instanceof CouponError) {
+      return res.status(error.status).json({ error: error.message });
+    }
+    throw error;
   }
 
   const order = await fetchOrderWithItems(orderId, req.auth.userId);

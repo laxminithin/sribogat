@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { toast } from 'react-hot-toast';
 import config from '../../config/config';
 import { 
   Plus, 
@@ -45,6 +46,7 @@ const AdminCouponManagement = () => {
     description: '',
     discountType: 'percentage',
     discountValue: '',
+    maxDiscountAmount: '',
     minOrderValue: '',
     maxUsageCount: '',
     usagePerUser: '1',
@@ -52,20 +54,23 @@ const AdminCouponManagement = () => {
     endDate: '',
     budget: '',
     isActive: true,
+    allowedUserEmails: '',
     applicableProducts: [],
     excludedProducts: [],
     applicableCategories: [],
     userGroups: 'all'
   });
+  const [products, setProducts] = useState([]);
+  const [productSearch, setProductSearch] = useState('');
 
   const [errors, setErrors] = useState({});
 
   // API Base URL - Update this to match your backend
   const API_BASE_URL = `${config.API_URL}/coupons`;
 
-  // Get auth token from sessionStorage or your auth context
+  // Get auth token — AuthProvider stores it in localStorage (Remember me) or sessionStorage
   const getAuthToken = () => {
-    return sessionStorage.getItem('adminToken');
+    return localStorage.getItem('adminToken') || sessionStorage.getItem('adminToken');
   };
 
   // FIXED: Enhanced API Helper function with better error handling
@@ -125,7 +130,19 @@ const AdminCouponManagement = () => {
   // Load coupons from API
   useEffect(() => {
     loadCoupons();
+    loadProducts();
   }, []);
+
+  // Product list for the "applicable products" selector
+  const loadProducts = async () => {
+    try {
+      const response = await fetch(`${config.API_URL}/products`);
+      const data = await response.json();
+      setProducts(Array.isArray(data) ? data : data.products || []);
+    } catch (error) {
+      console.error('Error loading products:', error);
+    }
+  };
 
   const loadCoupons = async () => {
     try {
@@ -148,11 +165,10 @@ const AdminCouponManagement = () => {
 
   // Enhanced toast notification
   const showToast = (message, type = 'success') => {
-    console.log(`${type === 'success' ? '✅' : '❌'} ${message}`);
     if (type === 'success') {
-      alert(`✅ ${message}`);
+      toast.success(message);
     } else {
-      alert(`❌ ${message}`);
+      toast.error(message);
     }
   };
 
@@ -201,6 +217,19 @@ const AdminCouponManagement = () => {
     if (formData.budget && formData.budget <= 0) {
       newErrors.budget = 'Budget must be greater than 0';
     }
+    if (formData.maxDiscountAmount && Number(formData.maxDiscountAmount) <= 0) {
+      newErrors.maxDiscountAmount = 'Max discount must be greater than 0';
+    }
+    if (formData.allowedUserEmails.trim()) {
+      const invalid = formData.allowedUserEmails
+        .split(',')
+        .map(e => e.trim())
+        .filter(Boolean)
+        .filter(e => !/^\S+@\S+\.\S+$/.test(e));
+      if (invalid.length) {
+        newErrors.allowedUserEmails = `Invalid email(s): ${invalid.join(', ')}`;
+      }
+    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -228,8 +257,17 @@ const AdminCouponManagement = () => {
       isActive: Boolean(formData.isActive),
       userGroups: formData.userGroups || 'all',
       startDate: new Date(formData.startDate).toISOString(),
-      endDate: new Date(formData.endDate).toISOString()
+      endDate: new Date(formData.endDate).toISOString(),
+      allowedUserEmails: formData.allowedUserEmails
+        .split(',')
+        .map(e => e.trim().toLowerCase())
+        .filter(Boolean),
+      applicableProducts: formData.applicableProducts || []
     };
+
+    if (formData.maxDiscountAmount && Number(formData.maxDiscountAmount) > 0) {
+      couponData.maxDiscountAmount = Number(formData.maxDiscountAmount);
+    }
 
     // FIXED: Only add optional fields if they have valid values
     if (formData.maxUsageCount && formData.maxUsageCount.trim() !== '' && Number(formData.maxUsageCount) > 0) {
@@ -298,6 +336,7 @@ const AdminCouponManagement = () => {
       description: '',
       discountType: 'percentage',
       discountValue: '',
+      maxDiscountAmount: '',
       minOrderValue: '',
       maxUsageCount: '',
       usagePerUser: '1',
@@ -305,6 +344,7 @@ const AdminCouponManagement = () => {
       endDate: '',
       budget: '',
       isActive: true,
+      allowedUserEmails: '',
       applicableProducts: [],
       excludedProducts: [],
       applicableCategories: [],
@@ -331,6 +371,7 @@ const AdminCouponManagement = () => {
       description: coupon.description || '',
       discountType: coupon.discountType || 'percentage',
       discountValue: coupon.discountValue ? coupon.discountValue.toString() : '',
+      maxDiscountAmount: coupon.maxDiscountAmount ? coupon.maxDiscountAmount.toString() : '',
       minOrderValue: coupon.minOrderValue ? coupon.minOrderValue.toString() : '',
       maxUsageCount: coupon.maxUsageCount ? coupon.maxUsageCount.toString() : '',
       usagePerUser: coupon.usagePerUser ? coupon.usagePerUser.toString() : '1',
@@ -338,6 +379,7 @@ const AdminCouponManagement = () => {
       endDate: formatDate(coupon.endDate),
       budget: coupon.budget ? coupon.budget.toString() : '',
       isActive: Boolean(coupon.isActive),
+      allowedUserEmails: (coupon.allowedUserEmails || []).join(', '),
       applicableProducts: coupon.applicableProducts || [],
       excludedProducts: coupon.excludedProducts || [],
       applicableCategories: coupon.applicableCategories || [],
@@ -422,8 +464,8 @@ const AdminCouponManagement = () => {
   };
 
  const filteredCoupons = coupons.filter(coupon => {
-  const matchesSearch = coupon.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                       coupon.code.toLowerCase().includes(searchQuery.toLowerCase());
+  const matchesSearch = (coupon.title?.toLowerCase() || '').includes(searchQuery.toLowerCase()) ||
+                       (coupon.code?.toLowerCase() || '').includes(searchQuery.toLowerCase());
   
   if (filterStatus === 'all') return matchesSearch;
   
@@ -838,6 +880,30 @@ const AdminCouponManagement = () => {
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Max Discount Amount
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      name="maxDiscountAmount"
+                      value={formData.maxDiscountAmount}
+                      onChange={handleInputChange}
+                      className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent ${
+                        errors.maxDiscountAmount ? 'border-red-500' : 'border-gray-300'
+                      }`}
+                      placeholder="No cap"
+                      min="0"
+                    />
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                      <span className="text-gray-500 text-sm">₹</span>
+                    </div>
+                  </div>
+                  {errors.maxDiscountAmount && <p className="text-red-500 text-sm mt-1">{errors.maxDiscountAmount}</p>}
+                  <p className="text-xs text-gray-500 mt-1">Caps the discount (useful for % coupons)</p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
                     Min Order Value
                   </label>
                   <div className="relative">
@@ -965,6 +1031,132 @@ const AdminCouponManagement = () => {
                   <option value="new">New Users Only</option>
                   <option value="premium">Premium Members Only</option>
                 </select>
+              </div>
+
+              {/* Customer Restriction */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Restrict to Specific Customers
+                </label>
+                <input
+                  type="text"
+                  name="allowedUserEmails"
+                  value={formData.allowedUserEmails}
+                  onChange={handleInputChange}
+                  className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent ${
+                    errors.allowedUserEmails ? 'border-red-500' : 'border-gray-300'
+                  }`}
+                  placeholder="e.g., customer1@example.com, customer2@example.com"
+                />
+                {errors.allowedUserEmails && <p className="text-red-500 text-sm mt-1">{errors.allowedUserEmails}</p>}
+                <p className="text-xs text-gray-500 mt-1">
+                  Comma-separated customer emails. Leave empty to allow everyone. Only these customers can see and use this coupon.
+                </p>
+              </div>
+
+              {/* Applicable Products */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Applicable Products
+                </label>
+                {/* Selected products as removable chips */}
+                {formData.applicableProducts.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-2">
+                    {formData.applicableProducts.map(id => {
+                      const p = products.find(pr => String(pr.id) === String(id));
+                      return (
+                        <span key={id} className="inline-flex items-center gap-1 bg-amber-100 text-amber-800 text-xs font-medium px-2 py-1 rounded-full">
+                          {p ? p.name : id}
+                          <button
+                            type="button"
+                            onClick={() => setFormData(prev => ({
+                              ...prev,
+                              applicableProducts: prev.applicableProducts.filter(pid => String(pid) !== String(id))
+                            }))}
+                            className="hover:text-amber-950"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </span>
+                      );
+                    })}
+                    <button
+                      type="button"
+                      onClick={() => setFormData(prev => ({ ...prev, applicableProducts: [] }))}
+                      className="text-xs text-gray-500 hover:text-red-600 underline"
+                    >
+                      Clear all
+                    </button>
+                  </div>
+                )}
+
+                {/* Search box + select all */}
+                <div className="flex items-center gap-2">
+                  <div className="relative flex-1">
+                    <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input
+                      type="text"
+                      value={productSearch}
+                      onChange={(e) => setProductSearch(e.target.value)}
+                      placeholder="Search products…"
+                      className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    />
+                  </div>
+                  {(() => {
+                    const filtered = products.filter(p => (p.name?.toLowerCase() || '').includes(productSearch.toLowerCase()));
+                    const allFilteredSelected = filtered.length > 0 && filtered.every(p => formData.applicableProducts.some(id => String(id) === String(p.id)));
+                    return (
+                      <button
+                        type="button"
+                        onClick={() => setFormData(prev => ({
+                          ...prev,
+                          applicableProducts: allFilteredSelected
+                            ? prev.applicableProducts.filter(id => !filtered.some(p => String(p.id) === String(id)))
+                            : [...new Set([...prev.applicableProducts, ...filtered.map(p => p.id)])]
+                        }))}
+                        disabled={filtered.length === 0}
+                        className="whitespace-nowrap text-sm font-medium px-3 py-2 border border-amber-300 text-amber-700 rounded-lg hover:bg-amber-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                      >
+                        {allFilteredSelected ? 'Deselect all' : 'Select all'}
+                      </button>
+                    );
+                  })()}
+                </div>
+
+                {/* Checkbox list */}
+                <div className="mt-2 max-h-48 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
+                  {products
+                    .filter(p => (p.name?.toLowerCase() || '').includes(productSearch.toLowerCase()))
+                    .map(product => {
+                      const checked = formData.applicableProducts.some(id => String(id) === String(product.id));
+                      return (
+                        <label key={product.id} className="flex items-center gap-3 px-3 py-2 hover:bg-amber-50 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => setFormData(prev => ({
+                              ...prev,
+                              applicableProducts: checked
+                                ? prev.applicableProducts.filter(id => String(id) !== String(product.id))
+                                : [...prev.applicableProducts, product.id]
+                            }))}
+                            className="w-4 h-4 text-amber-600 rounded focus:ring-amber-500"
+                          />
+                          <span className="text-sm text-gray-700 flex-1">{product.name}</span>
+                          <span className="text-sm text-gray-500">₹{product.price}</span>
+                        </label>
+                      );
+                    })}
+                  {products.filter(p => (p.name?.toLowerCase() || '').includes(productSearch.toLowerCase())).length === 0 && (
+                    <p className="px-3 py-4 text-sm text-gray-400 text-center">No products found</p>
+                  )}
+                </div>
+
+                <p className="text-xs text-gray-500 mt-1">
+                  {formData.applicableProducts.length > 0
+                    ? `${formData.applicableProducts.length} product(s) selected — discount applies only to these.`
+                    : 'Leave empty to apply the discount to the whole cart.'}
+                </p>
               </div>
 
               {/* Status */}

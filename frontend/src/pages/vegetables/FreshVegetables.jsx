@@ -7,7 +7,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../checkout/AuthProvider';
 import { toast } from 'react-hot-toast';
 import { usersApi, productsApi } from '../../services/api';
-import { resolveImageUrl } from '../../config/config';
+import { resolveImageUrl, FALLBACK_IMAGE } from '../../config/config';
+import { getPriceData } from '../../utils/pricing';
 import ProductReviewSection from './Feedback/ProductReviewSection';
 
 const BogatProducts = () => {
@@ -23,36 +24,10 @@ const BogatProducts = () => {
   const navigate = useNavigate();
   const { dispatch } = useCart();
 
-  // Function to get price data from database (no calculation needed)
-  const getPriceData = (product) => {
-    // Check if the product has pre-calculated total price from database
-    if (product.totalPrice !== undefined && product.totalPrice !== null) {
-      return {
-        basePrice: product.price || 0,
-        gstRate: product.gst || 18,
-        gstAmount: product.gstAmount || 0,
-        totalPrice: product.totalPrice
-      };
-    }
-    
-    // Fallback: If database doesn't have totalPrice, calculate it
-    const basePrice = parseFloat(product.price) || 0;
-    const gstRate = product.gst || 18;
-    const gstAmount = (basePrice * gstRate) / 100;
-    const totalPrice = basePrice + gstAmount;
-    
-    return {
-      basePrice,
-      gstRate,
-      gstAmount,
-      totalPrice
-    };
-  };
-
   // Helper function to get the first image from the images array
   const getProductImage = (product) => {
     if (!product) {
-      return 'https://via.placeholder.com/300x200/f3f4f6/9ca3af?text=No+Product';
+      return FALLBACK_IMAGE;
     }
 
     let imageUrl = null;
@@ -68,24 +43,10 @@ const BogatProducts = () => {
 
     // If no image found, return placeholder
     if (!imageUrl) {
-      return 'https://via.placeholder.com/300x200/f3f4f6/9ca3af?text=No+Image';
+      return FALLBACK_IMAGE;
     }
 
-    // Your backend serves from: app.use('/uploads', express.static(path.join(__dirname, 'src/uploads')));
-    // Your database has: "/uploads/product/filename.jpg"
-    // So the URL should be: "https://bogat.onrender.com/uploads/product/filename.jpg"
-    
-    if (imageUrl.startsWith('/uploads')) {
-      return resolveImageUrl(imageUrl);
-    }
-
-    // If it's already a full URL, use as is
-    if (imageUrl.startsWith('http')) {
-      return imageUrl;
-    }
-
-    // Default fallback
-    return resolveImageUrl(`/uploads/product/${imageUrl}`);
+    return resolveImageUrl(imageUrl);
   };
 
   // Enhanced debugging with file system check
@@ -457,7 +418,7 @@ const BogatProducts = () => {
                     onError={(e) => {
                       console.error('❌ Image failed to load:', e.target.src);
                       console.log('🔄 Falling back to placeholder for product:', product.name);
-                      e.target.src = 'https://via.placeholder.com/300x200/f3f4f6/9ca3af?text=Image+Error';
+                      e.target.src = FALLBACK_IMAGE;
                     }}
                     onLoad={(e) => {
                       console.log('✅ Image loaded successfully:', e.target.src);
@@ -537,7 +498,10 @@ const BogatProducts = () => {
                       }`}>
                         ₹{priceData.totalPrice.toFixed(2)}
                       </div>
-                      
+                      {priceData.gstRate > 0 && (
+                        <span className="text-xs text-gray-500">Inclusive of GST</span>
+                      )}
+
                       {product.unit && (
                         <span className="text-sm text-gray-600 font-normal mt-1">
                           /{product.unit}

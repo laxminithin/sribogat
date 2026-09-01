@@ -7,12 +7,14 @@ import { INDIAN_STATES } from '../../constants';
 const CustomerDetailsModal = ({ userId, onClose, onUpdate }) => {
   const [userData, setUserData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     phone: '',
     alternatePhone: '',
+    isPremium: false,
     address: {
       street: '',
       city: '',
@@ -42,6 +44,7 @@ const CustomerDetailsModal = ({ userId, onClose, onUpdate }) => {
         email: response.email || '',
         phone: response.phone || '',
         alternatePhone: response.alternatePhone || '',
+        isPremium: response.isPremium || false,
         address: {
           street: response.address?.street || '',
           city: response.address?.city || '',
@@ -56,6 +59,21 @@ const CustomerDetailsModal = ({ userId, onClose, onUpdate }) => {
       toast.error('Failed to load customer details');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      setSaving(true);
+      await usersApi.updateCustomer(userId, { isPremium: formData.isPremium });
+      toast.success('Customer updated');
+      onUpdate?.();
+    } catch (err) {
+      console.error('Error updating customer:', err);
+      toast.error('Failed to update customer');
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -87,8 +105,23 @@ const CustomerDetailsModal = ({ userId, onClose, onUpdate }) => {
                 <span>{error}</span>
               </div>
             ) : (
-              <form>
+              <form id="customer-details-form" onSubmit={handleSubmit}>
                 <div className="space-y-6">
+                  {/* Membership */}
+                  <div>
+                    <h4 className="text-lg font-medium text-gray-900 mb-4">Membership</h4>
+                    <label className="flex items-center gap-3 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        name="isPremium"
+                        checked={formData.isPremium}
+                        onChange={(e) => setFormData((prev) => ({ ...prev, isPremium: e.target.checked }))}
+                        className="h-4 w-4 rounded border-gray-300 text-amber-600 focus:ring-amber-500"
+                      />
+                      <span className="text-sm font-medium text-gray-700">Premium member</span>
+                    </label>
+                  </div>
+
                   {/* Basic Information */}
                   <div>
                     <h4 className="text-lg font-medium text-gray-900 mb-4">Basic Information</h4>
@@ -202,7 +235,7 @@ const CustomerDetailsModal = ({ userId, onClose, onUpdate }) => {
           </div>
 
           {/* Footer */}
-          <div className="bg-gray-50 px-6 py-4 flex justify-end">
+          <div className="bg-gray-50 px-6 py-4 flex justify-end gap-3">
             <button
               type="button"
               onClick={onClose}
@@ -210,6 +243,17 @@ const CustomerDetailsModal = ({ userId, onClose, onUpdate }) => {
             >
               Close
             </button>
+            {!loading && !error && (
+              <button
+                type="submit"
+                form="customer-details-form"
+                disabled={saving}
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium text-white bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500"
+              >
+                {saving && <Loader className="w-4 h-4 animate-spin" />}
+                {saving ? 'Saving...' : 'Save'}
+              </button>
+            )}
           </div>
         </div>
       </div>
